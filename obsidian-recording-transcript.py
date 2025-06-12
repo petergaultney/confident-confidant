@@ -1,8 +1,8 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # dependencies = [
+#   "litellm",
 #   "openai",
-#   "anthropic",
 # ]
 # ///
 
@@ -16,19 +16,30 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 import openai
-from anthropic import Anthropic
+from litellm import completion
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def anthropic_api_key() -> str:
+def _anthropic_api_key() -> str:
     return open(os.path.expanduser("~/.keys/claude-api")).read().strip()
 
 
-def openai_api_key() -> str:
+def _openai_api_key() -> str:
     return open(os.path.expanduser("~/.keys/openai-api")).read().strip()
+
+
+def _set_api_key(env_var: str) -> str:
+    os.environ[env_var] = os.environ.get(env_var) or _API_KEYS[env_var]()
+
+
+_API_KEYS = {
+    'OPENAI_API_KEY': _openai_api_key,
+    'ANTHROPIC_API_KEY': _anthropic_api_key,
+}
+list(map(_set_api_key, _API_KEYS.keys()))
 
 
 def hash_file(file_path: Path) -> str:
@@ -62,7 +73,7 @@ def find_linking_notes(vault_root: Path, audio_filename: str) -> List[Path]:
 def transcribe_audio(audio_path: Path) -> str:
     """Transcribe audio file using OpenAI Whisper."""
     logger.info(f"Transcribing audio: {audio_path}")
-    client = openai.OpenAI(api_key=openai_api_key())
+    client = openai.OpenAI()
 
     with open(audio_path, "rb") as audio_file:
         transcript = client.audio.transcriptions.create(model="whisper-1", file=audio_file)
@@ -73,18 +84,22 @@ def transcribe_audio(audio_path: Path) -> str:
 def get_summary_and_title(claude_model: str, transcript: str) -> tuple[str, str, str, str]:
     """Get summary and title from Claude."""
     logger.info("Getting summary and title from Claude")
-    client = Anthropic(api_key=anthropic_api_key())
-
     prompt = f"""Please analyze this transcript and provide:
 1. A short title (3-7 words, suitable for a filename)
 2. A concise summary (2-3 sentences) - I am the speaker, so use first-person perspective
 3. A complete and organized markdown-native outline,
-    with the highest level of heading being `###`,
+    with the highest level of heading being `##`,
     because it will be embedded inside an existing markdown document.
     If it makes sense for the content, try to orient around high level categories like
     "intuitions", "constraints", "assumptions",
     "alternatives or rejected ideas", "tradeoffs", and "next steps",
     though these don't necessarily need to be present or even the headings.
+   If the audio is more like a retelling of my day, then present the summary without headings,
+    but in three distinct sections as:
+      A. bullet points of things I worked on
+      B. specific 'tasks' for the future (format as Obsidian markdown tasks, e.g. ` - [ ] <task text`
+      C. Remaining insights, through-lines, or points to ponder.
+    If you think it fits neither of these categories, use your best judgment on the outline.
 4. A readable transcript of the audio, broken up into paragraphs.
     Never leave the most key thoughts buried in long paragraphs.
     Change ONLY whitespace!
@@ -101,11 +116,10 @@ READABLE TRANSCRIPT:
 Transcript:
 {transcript}"""
 
-    response = client.messages.create(
-        model=claude_model, max_tokens=16384, messages=[{"role": "user", "content": prompt}]
+    response = completion(
+        model=claude_model, messages=[{"role": "user", "content": prompt}]
     )
-
-    content = response.content[0].text
+    content = response['choices'][0]['message']['content']
 
     # Parse response with more specific boundaries
     title_match = re.search(r"TITLE:\s*(.+?)(?=\n|$)", content)
@@ -162,13 +176,13 @@ def create_transcript_note(
 ![[{new_audio_path.relative_to(vault_root)}]]
 size: {file_size_mb:.2f} MB | processed: {datetime.now().strftime("%Y-%m-%d %H:%M")} | sha256: `{file_hash}`
 
-## Summary
+# Summary
 {summary}
 
-## Outline
+# Outline
 {outline}
 
-## Full Transcript
+# Full Transcript
 {transcript}
 """
 
@@ -341,7 +355,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--model",
-        default="claude-sonnet-4-20250514",
+        default="anthropic/claude-sonnet-4-20250514",
     )
     parser.add_argument(
         "--execute",
