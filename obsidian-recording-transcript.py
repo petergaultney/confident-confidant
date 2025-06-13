@@ -7,6 +7,7 @@
 # ///
 
 import hashlib
+import itertools
 import logging
 import os
 import re
@@ -31,13 +32,13 @@ def _openai_api_key() -> str:
     return open(os.path.expanduser("~/.keys/openai-api")).read().strip()
 
 
-def _set_api_key(env_var: str) -> str:
+def _set_api_key(env_var: str):
     os.environ[env_var] = os.environ.get(env_var) or _API_KEYS[env_var]()
 
 
 _API_KEYS = {
-    'OPENAI_API_KEY': _openai_api_key,
-    'ANTHROPIC_API_KEY': _anthropic_api_key,
+    "OPENAI_API_KEY": _openai_api_key,
+    "ANTHROPIC_API_KEY": _anthropic_api_key,
 }
 list(map(_set_api_key, _API_KEYS.keys()))
 
@@ -116,10 +117,8 @@ READABLE TRANSCRIPT:
 Transcript:
 {transcript}"""
 
-    response = completion(
-        model=claude_model, messages=[{"role": "user", "content": prompt}]
-    )
-    content = response['choices'][0]['message']['content']
+    response = completion(model=claude_model, messages=[{"role": "user", "content": prompt}])
+    content = response["choices"][0]["message"]["content"]
 
     # Parse response with more specific boundaries
     title_match = re.search(r"TITLE:\s*(.+?)(?=\n|$)", content)
@@ -192,12 +191,12 @@ size: {file_size_mb:.2f} MB | processed: {datetime.now().strftime("%Y-%m-%d %H:%
 
 
 def create_new_audio_path(original_path: Path, target_dir: Path, new_filename: str) -> Path:
-    new_path = target_dir / f"{new_filename}.webm"
+    new_path = target_dir / f"{new_filename}.{original_path.suffix}"
 
     # Handle filename conflicts
     counter = 1
     while new_path.exists():
-        new_path = target_dir / f"{new_filename}-{counter}.webm"
+        new_path = target_dir / f"{new_filename}-{counter}.{original_path.suffix}"
         counter += 1
 
     return new_path
@@ -310,10 +309,10 @@ def process_audio_file(
 def process_vault_recordings(model: str, vault_output_dir: Path, dry_run: bool = True) -> None:
     """Main function to process all audio files in the vault."""
     audio_dir = vault_output_dir.resolve() / "audio"
-    transcript_dir  = vault_output_dir.resolve() / "transcripts"
+    transcript_dir = vault_output_dir.resolve() / "transcripts"
 
     vault_path = Path(vault_output_dir).resolve()
-    while not (vault_path / '.obsidian').is_dir():
+    while not (vault_path / ".obsidian").is_dir():
         vault_path = vault_path.parent
         assert vault_path.exists(), f"Vault path {vault_output_dir} does not contain .obsidian directory"
         assert vault_path != vault_path.parent, f"Vault path {vault_output_dir} is not a valid vault"
@@ -324,10 +323,11 @@ def process_vault_recordings(model: str, vault_output_dir: Path, dry_run: bool =
     logger.info(f"Dry run mode: {dry_run}")
 
     # Find all audio recordings not in the target audio directory
-    audio_pattern = "Recording *.webm"
-    processed_count = 0
+    audio_patterns = ["Recording *.webm", "Recording *.m4a"]
+    all_audio_files = itertools.chain.from_iterable(vault_path.rglob(p) for p in audio_patterns)
 
-    for audio_file in vault_path.rglob(audio_pattern):
+    processed_count = 0
+    for audio_file in all_audio_files:
         # Skip files already in the target directory
         if audio_dir in audio_file.parents:
             continue
