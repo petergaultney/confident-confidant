@@ -12,9 +12,11 @@ import logging
 import os
 import re
 import shutil
+import textwrap
+import typing as ty
 from datetime import datetime
+from functools import partial
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 import openai
 from litellm import completion
@@ -53,7 +55,7 @@ def hash_file(file_path: Path) -> str:
     return hasher.hexdigest()
 
 
-def find_linking_notes(vault_root: Path, audio_filename: str) -> List[Path]:
+def find_linking_notes(vault_root: Path, audio_filename: str) -> list[Path]:
     """Find all text notes that link to the given audio file."""
     logger.info(f"Looking for notes linking to: {audio_filename}")
     linking_notes = []
@@ -82,58 +84,77 @@ def transcribe_audio(audio_path: Path) -> str:
     return transcript.text
 
 
-def get_summary_and_title(claude_model: str, transcript: str) -> tuple[str, str, str, str]:
+def _test_whitespace_equivalence(original: str, modified: str) -> bool:
+    """Check if the second string contains the first, ignoring whitespace."""
+    original_cleaned = re.sub(r"\s+", " ", original).strip()
+    modified_cleaned = re.sub(r"\s+", " ", modified).strip()
+    return original_cleaned in modified_cleaned
+
+
+_DEFAULT_PROMPT = textwrap.dedent(
+    f"""
+    2. A concise summary (2-3 sentences) - I am the speaker, so use first-person perspective
+    3. A complete and organized markdown-native outline,
+        with the highest level of heading being `##`,
+        because it will be embedded inside an existing markdown document.
+        If it makes sense for the content, try to orient around high level categories like
+        "intuitions", "constraints", "assumptions",
+        "alternatives or rejected ideas", "tradeoffs", and "next steps",
+        though these don't necessarily need to be present or even the headings.
+       If the audio is more like a retelling of my day, then present the summary without headings,
+        but in three distinct sections as:
+          A. bullet points of things I worked on
+          B. specific 'tasks' for the future (format as Obsidian markdown tasks, e.g. ` - [ ] <task text`
+          C. Remaining insights, through-lines, or points to ponder.
+        If you think it fits neither of these categories, use your best judgment on the outline.
+    4. A readable transcript of the audio, broken up into paragraphs.
+        Never leave the most key thoughts buried in long paragraphs.
+        Change ONLY whitespace!
+
+    Format your response as:
+    # Summary
+
+    {{summary}}
+
+    # Outline
+
+    {{outline}}
+
+    # Full transcript
+
+    {{full_readable_transcript}}
+    """
+)
+
+
+def transform_transcript_into_note(
+    claude_model: str,
+    transcript: str,
+    prompt: str = _DEFAULT_PROMPT,
+) -> tuple[str, str]:
     """Get summary and title from Claude."""
     logger.info("Getting summary and title from Claude")
-    prompt = f"""Please analyze this transcript and provide:
-1. A short title (3-7 words, suitable for a filename)
-2. A concise summary (2-3 sentences) - I am the speaker, so use first-person perspective
-3. A complete and organized markdown-native outline,
-    with the highest level of heading being `##`,
-    because it will be embedded inside an existing markdown document.
-    If it makes sense for the content, try to orient around high level categories like
-    "intuitions", "constraints", "assumptions",
-    "alternatives or rejected ideas", "tradeoffs", and "next steps",
-    though these don't necessarily need to be present or even the headings.
-   If the audio is more like a retelling of my day, then present the summary without headings,
-    but in three distinct sections as:
-      A. bullet points of things I worked on
-      B. specific 'tasks' for the future (format as Obsidian markdown tasks, e.g. ` - [ ] <task text`
-      C. Remaining insights, through-lines, or points to ponder.
-    If you think it fits neither of these categories, use your best judgment on the outline.
-4. A readable transcript of the audio, broken up into paragraphs.
-    Never leave the most key thoughts buried in long paragraphs.
-    Change ONLY whitespace!
 
-Format your response as:
-TITLE: [title here]
-SUMMARY:
-[summary here]
-OUTLINE:
-[outline here]
-READABLE TRANSCRIPT:
-[transcript here]
+    prompt = (
+        textwrap.dedent(
+            f"""
+        Please analyze the transcript at the end and provide:
 
-Transcript:
-{transcript}"""
+        1. A short title (3-7 words, suitable for a filename) - put this as the very last
+        line, preceded by a newline.
+        """
+        )
+        + (prompt or _DEFAULT_PROMPT)
+        + f"\nRaw Transcript:\n{transcript}"
+    )
 
     response = completion(model=claude_model, messages=[{"role": "user", "content": prompt}])
     content = response["choices"][0]["message"]["content"]
 
-    # Parse response with more specific boundaries
-    title_match = re.search(r"TITLE:\s*(.+?)(?=\n|$)", content)
-    summary_match = re.search(r"SUMMARY:\s*\n(.+?)(?=\nOUTLINE:|$)", content, re.DOTALL)
-    outline_match = re.search(r"OUTLINE:\s*\n(.+?)(?=\nREADABLE TRANSCRIPT:|$)", content, re.DOTALL)
-    transcript_match = re.search(r"READABLE TRANSCRIPT:\s*\n(.+)", content, re.DOTALL)
-
-    title = title_match.group(1).strip() if title_match else "Audio Note"
-    summary = summary_match.group(1).strip() if summary_match else "Summary not available"
-    outline = outline_match.group(1).strip() if outline_match else "Outline not available"
-    readable_transcript = (
-        transcript_match.group(1).strip() if transcript_match else "Transcript not available"
-    )
-
-    return title, summary, outline, readable_transcript
+    note, last_line_is_title = content.rsplit("\n", 1)
+    if not _test_whitespace_equivalence(transcript, note):
+        note += f"# Raw transcript\n{transcript}"
+    return note, last_line_is_title
 
 
 def _sanitize_title(title: str) -> str:
@@ -156,38 +177,30 @@ def generate_new_filename(audio_path: Path, title: str) -> str:
 def create_transcript_note(
     vault_root: Path,
     new_audio_path: Path,
-    transcript_path: Path,
+    transcript_note_path: Path,
     title: str,
-    summary: str,
-    outline: str,
-    transcript: str,
+    prompt_response: str,
     file_hash: str,
 ) -> Path:
     """Create the transcript note with metadata."""
-    logger.info(f"Creating transcript note: {transcript_path}")
+    logger.info(f"Creating transcript note: {transcript_note_path}")
 
     # Get file stats for metadata
     stat = new_audio_path.stat()
     file_size_mb = stat.st_size / (1024 * 1024)
 
-    content = f"""# {title}
+    content = f"""
+# {title}
 
 ![[{new_audio_path.relative_to(vault_root)}]]
 size: {file_size_mb:.2f} MB | processed: {datetime.now().strftime("%Y-%m-%d %H:%M")} | sha256: `{file_hash}`
 
-# Summary
-{summary}
-
-# Outline
-{outline}
-
-# Full Transcript
-{transcript}
+{prompt_response}
 """
 
-    transcript_path.parent.mkdir(parents=True, exist_ok=True)
-    transcript_path.write_text(content, encoding="utf-8")
-    return transcript_path
+    transcript_note_path.parent.mkdir(parents=True, exist_ok=True)
+    transcript_note_path.write_text(content, encoding="utf-8")
+    return transcript_note_path
 
 
 def create_new_audio_path(original_path: Path, target_dir: Path, new_filename: str) -> Path:
@@ -212,7 +225,10 @@ def _copy_file(original_path: Path, new_path: Path, dry_run: bool = True) -> Non
 
 
 def replace_links_in_notes(
-    linking_notes: List[Path], old_filename: str, new_link: str, dry_run: bool = False
+    linking_notes: list[Path],
+    old_filename: str,
+    new_link: str,
+    dry_run: bool = False,
 ) -> None:
     """Replace audio links with transcript links in linking notes."""
     old_pattern = rf"!\[\[{re.escape(old_filename)}\]\]"
@@ -234,20 +250,14 @@ def replace_links_in_notes(
             logger.error(f"Failed to update links in {note_path}: {e}")
 
 
-def _test_whitespace_equivalence(original: str, modified: str) -> bool:
-    """Check if two strings are equivalent when ignoring whitespace."""
-    original_cleaned = re.sub(r"\s+", " ", original).strip()
-    modified_cleaned = re.sub(r"\s+", " ", modified).strip()
-    return original_cleaned == modified_cleaned
-
-
 def process_audio_file(
+    model: str,
+    dry_run: bool,
+    prompt_file_path: Path,
     vault_root: Path,
-    audio_path: Path,
     audio_dir: Path,
     transcript_dir: Path,
-    model: str,
-    dry_run: bool = False,
+    audio_path: Path,
 ) -> None:
     """Process a single audio file through the complete workflow."""
     audio_filename = audio_path.name
@@ -266,7 +276,11 @@ def process_audio_file(
     transcript = transcribe_audio(audio_path)
 
     # Get summary and title
-    title, summary, outline, readable_transcript = get_summary_and_title(model, transcript)
+    note, title = transform_transcript_into_note(
+        model,
+        transcript,
+        prompt=prompt_file_path.read_text() if prompt_file_path and prompt_file_path.is_file() else "",
+    )
     filename_base = generate_new_filename(audio_path, title)
     new_audio_path = create_new_audio_path(audio_path, audio_dir, filename_base)
     _copy_file(audio_path, new_audio_path, dry_run=False)
@@ -279,13 +293,7 @@ def process_audio_file(
         new_audio_path,
         transcript_note_path,
         title,
-        summary,
-        outline,
-        (
-            readable_transcript
-            if _test_whitespace_equivalence(transcript, readable_transcript)
-            else readable_transcript + "\n\noriginal\n\n" + transcript
-        ),
+        note,
         original_hash,
     )
 
@@ -306,7 +314,10 @@ def process_audio_file(
     logger.info(f"Successfully processed {audio_path} -> {new_transcript_note_link}")
 
 
-def process_vault_recordings(model: str, vault_output_dir: Path, dry_run: bool = True) -> None:
+def process_vault_recordings(
+    vault_output_dir: Path,
+    process_recording: ty.Callable[[Path, Path, Path, Path], None],
+) -> None:
     """Main function to process all audio files in the vault."""
     audio_dir = vault_output_dir.resolve() / "audio"
     transcript_dir = vault_output_dir.resolve() / "transcripts"
@@ -320,7 +331,6 @@ def process_vault_recordings(model: str, vault_output_dir: Path, dry_run: bool =
     logger.info(f"Starting audio processing in vault: {vault_path}")
     logger.info(f"Audio directory: {audio_dir}")
     logger.info(f"Transcript directory: {transcript_dir}")
-    logger.info(f"Dry run mode: {dry_run}")
 
     # Find all audio recordings not in the target audio directory
     audio_patterns = ["Recording *.webm", "Recording *.m4a"]
@@ -333,12 +343,12 @@ def process_vault_recordings(model: str, vault_output_dir: Path, dry_run: bool =
             continue
 
         try:
-            process_audio_file(vault_path, audio_file, audio_dir, transcript_dir, model, dry_run)
+            process_recording(vault_path, audio_dir, transcript_dir, audio_file)
             processed_count += 1
         except Exception as e:
             logger.exception(f"Error processing {audio_file}: {e}")
 
-    logger.info(f"Processing complete. Files processed: {processed_count}")
+    logger.info(f"Processing complete. Files successfully processed: {processed_count}")
 
 
 if __name__ == "__main__":
@@ -354,6 +364,12 @@ if __name__ == "__main__":
         help="Directory within Vault to store processed audio and transcripts",
     )
     parser.add_argument(
+        "--prompt-file",
+        "-p",
+        help="A file containing a custom prompt for handling the transcript",
+        default=None,
+    )
+    parser.add_argument(
         "--model",
         default="anthropic/claude-sonnet-4-20250514",
     )
@@ -365,4 +381,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    process_vault_recordings(args.model, args.vault_output_dir, not args.execute)
+    process_vault_recordings(
+        args.vault_output_dir,
+        partial(
+            process_audio_file,
+            args.model,
+            not args.execute,
+            args.prompt_file,
+        ),
+    )
