@@ -348,8 +348,6 @@ def _read_config_from_directory_hierarchy(any_path: Path) -> ConfidentConfidantC
     config_files = (
         current_dir / ".cc-config.md",
         current_dir / "cc-config.md",
-        current_dir / ".cc-config.txt",
-        current_dir / "cc-config.txt",
         current_dir / (current_dir.name + ".md"),
         # look inside a 'folder note', if any, under the heading `# Transcript Prompt`
     )

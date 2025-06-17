@@ -56,8 +56,6 @@ Config will be looked for in files with these names as we recurse upward:
 
 - `.cc-config.md`
 - `cc-config.md`
-- `.cc-config.txt`
-- `cc-config.txt`
 - `<current-dirname>.md`
 
 The last follows the convention of the ['Folder Notes' plugin for
