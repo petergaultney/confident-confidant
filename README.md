@@ -16,8 +16,10 @@ provide an automagic `.venv` for this script.
 You'll need an OpenAI API key and an Anthropic API key. Place them in `~/.keys/openai-api`
 and `~/.keys/anthropic-api`, or set `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` environment variables.
 
-If you wish to use only OpenAI, you can skip the Anthropic key(s), but you'll need to
-configure one of OpenAI's LLMs as the note creator, using the config format shown below.
+If you wish to use only OpenAI, you can skip the Anthropic key, but you'll need to
+configure one of OpenAI's LLMs as the note creator, using the config format shown
+below. As of this writing, I'm not aware of an Anthropic transcription model that we could
+be supporting.
 
 ## Usage
 
