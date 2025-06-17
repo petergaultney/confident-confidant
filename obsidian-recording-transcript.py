@@ -336,10 +336,17 @@ def transform_transcript_into_note(
         Please analyze the raw transcript at the end and provide:
 
         1. A short title (3-7 words, suitable for a filename) - put this as the very first
-           line, followed by a newline.
+           line, followed by a newline, regardless of any formatting instructions that follow.
+           This must never be missing, and it must always be at least 3 words and more than 7,
+           and they must be as unique as possible using the content of the transcript, since this will
+           be part of a filename.
         """
         )
         + (prompt or _DEFAULT_NOTE_PROMPT)
+        + (
+            "\n\n" + "Remember - regardless of the rest of the format of your response,"
+            " the very first line must be a 3-7 word title on a line by itself."
+        )
         + f"\n\nRaw transcript to be analyzed:\n{transcript}"
     )
 
@@ -589,10 +596,9 @@ if __name__ == "__main__":
         help="The directory that you want to process, which should be within an Obsidian vault.",
     )
     parser.add_argument(
-        "--execute",
-        "-x",
+        "--no-mutate",
         action="store_true",
-        help="Run the actual file move and note edits (default is dry run)",
+        help="Don't do the actual file move and link mutation - this is a quasi dry-run.",
     )
     args = parser.parse_args()
 
@@ -600,6 +606,6 @@ if __name__ == "__main__":
         args.process_vault_dir,
         partial(
             process_audio_file,
-            not args.execute,
+            args.no_mutate,
         ),
     )
