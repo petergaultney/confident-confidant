@@ -587,7 +587,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Process audio files in an Obsidian vault.",
+        description=(
+            "The (overly?) Confident Confidant. "
+            "Turn audio recordings into helpful Obsidian notes with transcripts."
+        ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
