@@ -34,9 +34,11 @@ be supporting.
 
 Use the default prompt and settings by just running the script.
 
-`./cc.py <your-vault-dir>`
+```sh
+./cc.py <your-vault-dir>
+```
 
-To 'test' (avoid modifying any of your existing notes), run as `./cc.py --no-mutate` -
+To 'test' (avoid modifying any of your existing notes), add the `--no-mutate` flag -
 this will create a new note and will make a copy of your audio file, but will not change
 existing notes.
 
