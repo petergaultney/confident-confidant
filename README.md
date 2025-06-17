@@ -39,8 +39,8 @@ Use the default prompt and settings by just running the script.
 ```
 
 To 'test' (avoid modifying any of your existing notes), add the `--no-mutate` flag -
-this will create a new note and will make a copy of your audio file, but will not change
-existing notes.
+this will create the output note, but will not move the audio file and will not
+mutate any existing notes.
 
 Run in an infinite loop ('server mode') with `--loop`. The sleep is hardcoded to 10
 seconds because I am lazy.

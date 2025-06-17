@@ -604,9 +604,7 @@ def process_audio_file(
     new_audio_path = create_new_audio_path(
         audio_path, _interpret_dir_config(vault_root, audio_path, tconfig.audio_dir), filename_base
     )
-    _copy_file(audio_path, new_audio_path, dry_run=False)
-    # always copy the file, even in dry run mode - this is non-mutating to existing notes
-    # and data, lets us make sure that the transcript note is immediately valid.
+    _copy_file(audio_path, new_audio_path, dry_run=dry_run)
 
     # Create transcript note
     transcript_note_path = (
@@ -614,7 +612,7 @@ def process_audio_file(
     )
     create_transcript_note(
         vault_root,
-        new_audio_path,
+        audio_path if dry_run else new_audio_path,
         transcript_note_path,
         title,
         note,
