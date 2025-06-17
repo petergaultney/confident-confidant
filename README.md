@@ -11,9 +11,10 @@ core plugin, but it will work with any folder that contains Markdown files and `
     overall organization of things even though this utility will end up reorganizing these
     audio recordings according to its own configuration.
 
-Will find any `.m4a` or `.webm` file within a directory (recursively) that is linked to
-from within any `.md` file. The link can be a "wikilink" (`[[audio.m4a|optional name]]`), an embed
-(wikilink prefixed with `!`), or a standard Markdown link (`[name](audio.m4a)`).
+Will find any `Recording*.m4a` or `Recording*.webm` file within a directory (recursively)
+that is linked to from within any `.md` file. The link can be a "wikilink"
+(`[[audio.m4a|optional name]]`), an embed (wikilink prefixed with `!`), or a standard
+Markdown link (`[name](audio.m4a)`).
 
 Does not need to be pointed at your entire Vault - can run on any subdirectory within it.
 

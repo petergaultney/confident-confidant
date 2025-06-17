@@ -205,9 +205,10 @@ class ConfidentConfidantConfig:
     transcription_prompt: str = ""
     note_model: str = "anthropic/claude-sonnet-4-20250514"
     note_prompt: str = _DEFAULT_NOTE_PROMPT
-    audio_dir: str = "./audio"
+    audio_dir: str = "./cc/audio"
     # dirs can be relative to the original audio file (starts with ./) or to the vault root (starts with :)
-    transcripts_dir: str = "./transcripts"
+    notes_dir: str = "./cc/notes"
+    datetime_fmt: str = "%y-%m-%d_%H%M"  # very opinionated, sorry - I don't expect to live until 2100
     skip_dir: bool = False
     # if True, skip any files in this directory, and in subdirectories that do not have more specific config.
 
@@ -326,13 +327,9 @@ def _read_config_from_directory_hierarchy(any_path: Path) -> ConfidentConfidantC
         base_config_text = base_config_text.strip()
         if base_config_text:
             base_config = _parse_hjson(base_config_text)
-            config.audio_dir = base_config.get("audio_dir") or config.audio_dir
-            config.transcripts_dir = base_config.get("transcripts_dir") or config.transcripts_dir
-            config.skip_dir = base_config.get("skip_dir", False)
-            config.transcription_model = (
-                base_config.get("transcription_model") or config.transcription_model
-            )
-            config.note_model = base_config.get("note_model") or config.note_model
+            for key, value in base_config.items():
+                if hasattr(config, key):
+                    setattr(config, key, value)
 
         if transcription_prompt := extract_heading_content(cc_config_md, "## Transcription Prompt"):
             config.transcription_prompt = transcription_prompt
@@ -419,11 +416,11 @@ def _sanitize_title(title: str) -> str:
     return sanitized
 
 
-def generate_new_filename(audio_path: Path, title: str) -> str:
+def _generate_new_filename(datetime_fmt: str, audio_path: Path, title: str) -> str:
     """Generate new filename with audio file creation timestamp and title."""
     # Get the creation time of the audio file
     creation_time = datetime.fromtimestamp(audio_path.stat().st_ctime)
-    timestamp = creation_time.strftime("%y-%m-%d_%H%M")
+    timestamp = creation_time.strftime(datetime_fmt)
     return f"{timestamp}_{_sanitize_title(title)}"
 
 
@@ -470,6 +467,9 @@ def create_new_audio_path(original_path: Path, target_dir: Path, new_filename: s
 
 
 def _copy_file(original_path: Path, new_path: Path, dry_run: bool = True) -> None:
+    if original_path.resolve() == new_path.resolve():
+        logger.info(f"Skipping copy to same location: {original_path}")
+        return
     if not dry_run:
         logger.info(f"Copying audio file: {original_path} -> {new_path}")
         new_path.parent.mkdir(parents=True, exist_ok=True)
@@ -600,7 +600,7 @@ def process_audio_file(
         prompt=tconfig.note_prompt,
     )
 
-    filename_base = generate_new_filename(audio_path, title)
+    filename_base = _generate_new_filename(tconfig.datetime_fmt, audio_path, title)
     new_audio_path = create_new_audio_path(
         audio_path, _interpret_dir_config(vault_root, audio_path, tconfig.audio_dir), filename_base
     )
@@ -608,7 +608,7 @@ def process_audio_file(
 
     # Create transcript note
     transcript_note_path = (
-        _interpret_dir_config(vault_root, audio_path, tconfig.transcripts_dir) / f"{filename_base}.md"
+        _interpret_dir_config(vault_root, audio_path, tconfig.notes_dir) / f"{filename_base}.md"
     )
     create_transcript_note(
         vault_root,
@@ -644,7 +644,7 @@ def process_vault_recordings(
         all_audio_files = [process_vault_path]
     else:
         # Find all unrenamed audio recordings
-        audio_patterns = ["Recording *.webm", "Recording *.m4a"]
+        audio_patterns = ["Recording*.webm", "Recording*.m4a"]
         all_audio_files = itertools.chain.from_iterable(  # type: ignore[assignment]
             process_vault_path.rglob(p) for p in audio_patterns
         )

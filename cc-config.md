@@ -5,8 +5,9 @@
 ```hjson
 transcription_model: gpt-4o-transcribe
 note_model: anthropic/claude-sonnet-4-20250514
-audio_dir: ./audio
-transcripts_dir: ./transcripts
+audio_dir: ./cc/audio
+notes_dir: ./cc/notes
+datetime_fmt: %y-%m-%d_%H%M
 ```
 
 ## Transcription Prompt

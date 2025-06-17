@@ -1,3 +1,8 @@
+## 0.3.0
+
+- Move default directories to be under a `cc` directory. Rename `transcripts` directory to `notes`.
+- Expose the datetime format as a configurable option, `datetime_fmt`.
+
 ## 0.2.1
 
 - `--no-mutate` now avoids making a copy of the audio file, so that things are easier to
