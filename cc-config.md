@@ -1,4 +1,4 @@
-# Transcript Config
+# Confident Confidant Config
 
 ## Base Config
 

@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 def _anthropic_api_key() -> str:
-    return open(os.path.expanduser("~/.keys/claude-api")).read().strip()
+    return open(os.path.expanduser("~/.keys/anthropic-api")).read().strip()
 
 
 def _openai_api_key() -> str:
@@ -143,7 +143,7 @@ _DEFAULT_NOTE_PROMPT = textwrap.dedent(
 
 
 @dataclass
-class TranscriptConfig:
+class ConfidentConfidantConfig:
     transcription_model: str = "whisper-1"  # or "gpt-4o-transcribe"
     transcription_prompt: str = ""
     note_model: str = "anthropic/claude-sonnet-4-20250514"
@@ -155,7 +155,7 @@ class TranscriptConfig:
     # if True, skip any files in this directory, and in subdirectories that do not have more specific config.
 
 
-_DEFAULT_CONFIG = TranscriptConfig()
+_DEFAULT_CONFIG = ConfidentConfidantConfig()
 
 
 def extract_heading_content(markdown_text: str, header_string: str) -> None | str:
@@ -251,7 +251,7 @@ def _parse_hjson(some_text: str) -> dict[str, ty.Any]:
 
 
 @lru_cache  # cache this so we don't have to re-read the directory hierarchy for every file.
-def _read_config_from_directory_hierarchy(any_path: Path) -> TranscriptConfig:
+def _read_config_from_directory_hierarchy(any_path: Path) -> ConfidentConfidantConfig:
     """Return the first config found in the first file where the config is not identical to the default config.
 
     'First' means we look 'upward' in the directory hierarchy for a config file, starting
@@ -263,12 +263,12 @@ def _read_config_from_directory_hierarchy(any_path: Path) -> TranscriptConfig:
         logger.info(f"Using default config for {current_dir}")
         return _DEFAULT_CONFIG  # reached the root of the filesystem, no config found
 
-    def parse_config(config_md: str) -> TranscriptConfig:
-        config_section = extract_heading_content(config_md, "# Transcript Config")
+    def parse_config(config_md: str) -> ConfidentConfidantConfig:
+        config_section = extract_heading_content(config_md, "# Confident Confidant Config")
         if not config_section:
             return _DEFAULT_CONFIG
 
-        config = TranscriptConfig()
+        config = ConfidentConfidantConfig()
 
         base_config_text = extract_heading_content(config_section, "## Base Config") or ""
         if escaped_config := extract_code_block(base_config_text):
@@ -296,10 +296,10 @@ def _read_config_from_directory_hierarchy(any_path: Path) -> TranscriptConfig:
         return config
 
     config_files = (
-        current_dir / ".transcript-config.md",
-        current_dir / "transcript-config.md",
-        current_dir / ".transcript-config.txt",
-        current_dir / "transcript-config.txt",
+        current_dir / ".cc-config.md",
+        current_dir / "cc-config.md",
+        current_dir / ".cc-config.txt",
+        current_dir / "cc-config.txt",
         current_dir / (current_dir.name + ".md"),
         # look inside a 'folder note', if any, under the heading `# Transcript Prompt`
     )
