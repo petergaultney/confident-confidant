@@ -1,0 +1,21 @@
+[project]
+name = "confident-confidant"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "hjson",
+	"litellm",
+	"openai",
+]
+
+[dependency-groups]
+dev = [
+    "ruff",
+	"mypy",
+	"mypy-extensions",
+]
+
+[tool.ruff]
+line-length = 105
