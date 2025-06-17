@@ -603,12 +603,24 @@ if __name__ == "__main__":
         action="store_true",
         help="Don't do the actual file move and link mutation - this is a quasi dry-run.",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--loop",
+        action="store_true",
+        help="Run the script in a loop, processing new files as they appear.",
+    )
 
-    process_vault_recordings(
+    args = parser.parse_args()
+    run = partial(
+        process_vault_recordings,
         args.process_vault_dir,
         partial(
             process_audio_file,
             args.no_mutate,
         ),
     )
+
+    run()
+    if args.loop:
+        while True:
+            time.sleep(10)
+            run()
