@@ -6,7 +6,7 @@
 #   "hjson",
 # ]
 # ///
-
+import difflib
 import hashlib
 import itertools
 import logging
@@ -63,21 +63,77 @@ def hash_file(file_path: Path) -> str:
     return hasher.hexdigest()
 
 
+@dataclass
+class Link:
+    """Represents a Markdown or Obsidian link found in a note."""
+
+    full_match: str
+    target: str
+    is_embed: bool
+    style: ty.Literal["obsidian", "markdown"]
+    text: str | None = None
+
+
+# A single regex to find both Obsidian and Markdown links.
+# It uses named capture groups for easier parsing.
+_LINK_PATTERN = re.compile(
+    r"""
+    (?P<obsidian>
+        (?P<obs_embed>!)?\[\[
+        (?P<obs_target>[^|\]]+)
+        (?:\|(?P<obs_text>[^\]]+))?
+        \]\]
+    )
+    |
+    (?P<markdown>
+        \[(?P<md_text>[^\]]*)\]
+        \((?P<md_target>[^)]+)\)
+    )
+""",
+    re.VERBOSE,
+)
+
+
+def find_all_links(content: str) -> list[Link]:
+    """Finds all Obsidian or Markdown links in a string."""
+    links = []
+    for match in _LINK_PATTERN.finditer(content):
+        if match.group("obsidian"):
+            links.append(
+                Link(
+                    full_match=match.group(0),
+                    target=match.group("obs_target").strip(),
+                    is_embed=bool(match.group("obs_embed")),
+                    style="obsidian",
+                    text=match.group("obs_text"),
+                )
+            )
+        elif match.group("markdown"):
+            links.append(
+                Link(
+                    full_match=match.group(0),
+                    target=match.group("md_target").strip(),
+                    is_embed=False,  # Markdown links are not considered embeds here
+                    style="markdown",
+                    text=match.group("md_text"),
+                )
+            )
+    return links
+
+
 def find_linking_notes(vault_root: Path, audio_filename: str) -> list[Path]:
     """Find all text notes that link to the given audio file."""
     logger.info(f"Looking for notes linking to: {audio_filename}")
     linking_notes = []
-    link_pattern = rf"!\[\[{re.escape(audio_filename)}\]\]"
-
     for note_path in vault_root.rglob("*.md"):
         try:
             content = note_path.read_text(encoding="utf-8")
-            if re.search(link_pattern, content):
+            links = find_all_links(content)
+            if any(link.target == audio_filename for link in links):
                 linking_notes.append(note_path)
                 logger.info(f"Found linking note: {note_path}")
         except Exception as e:
             logger.warning(f"Could not read {note_path}: {e}")
-
     return linking_notes
 
 
@@ -394,7 +450,6 @@ def create_transcript_note(
 
 ![[{new_audio_path.relative_to(vault_root)}]]
 size: {file_size_mb:.2f} MB | processed: {datetime.now().strftime("%Y-%m-%d %H:%M")} | sha256: `{file_hash}`
-
 {prompt_response}
 """.strip()
         + "\n"
@@ -425,32 +480,79 @@ def _copy_file(original_path: Path, new_path: Path, dry_run: bool = True) -> Non
         logger.info(f"DRY RUN: Would copy {original_path} -> {new_path}")
 
 
+def _print_diff(diff: ty.Iterable[str]) -> None:
+    colors = {
+        "red": "\033[91m",
+        "green": "\033[92m",
+        "cyan": "\033[96m",
+        "endc": "\033[0m",
+    }
+    for line in diff:
+        if line.startswith("+"):
+            print(f"{colors['green']}{line}{colors['endc']}", end="")
+        elif line.startswith("-"):
+            print(f"{colors['red']}{line}{colors['endc']}", end="")
+        elif line.startswith("@@"):
+            print(f"{colors['cyan']}{line}{colors['endc']}", end="")
+        else:
+            print(line, end="")
+
+
 def replace_links_in_notes(
     root: Path,
     linking_notes: list[Path],
     old_filename: str,
     transcript_note_path: Path,
+    transcript_title: str,
     dry_run: bool = False,
 ) -> None:
-    """Replace audio links with transcript links in linking notes."""
-    old_pattern = rf"!\[\[{re.escape(old_filename)}\]\]"
-    transcript_note_link = f"[[{transcript_note_path.relative_to(root)}]]"
+    """Replace audio links with transcript links, preserving link style."""
+    new_link_target = transcript_note_path.relative_to(root).as_posix()
+
+    def replacer(match: re.Match) -> str:
+        """This function is called by re.sub for each link found."""
+        link = find_all_links(match.group(0))[0]  # Parse the single matched link
+
+        # If this link's target isn't the one we're replacing, return it unchanged.
+        if link.target != old_filename:
+            return link.full_match
+
+        # Otherwise, build the new link in the same style as the original.
+        if link.style == "obsidian":
+            # Note: We are intentionally converting audio embeds `![[...]]`
+            # to normal note links `[[...]]`.
+            return f"[[{new_link_target}|{transcript_title}]]"
+        elif link.style == "markdown":
+            return f"[{transcript_title}]({new_link_target})"
+
+        return link.full_match  # Failsafe
 
     for note_path in linking_notes:
         try:
             content = note_path.read_text(encoding="utf-8")
-            new_content = re.sub(old_pattern, transcript_note_link, content)
+            new_content = _LINK_PATTERN.sub(replacer, content)
 
-            if not dry_run:
-                note_path.write_text(new_content, encoding="utf-8")
-                logger.info(f"Updated links in: {note_path}")
-            else:
-                logger.info(
-                    f"DRY RUN: Would update links in: {note_path} - the new text would look like"
+            if content != new_content:
+                logger.info(f"Links in {note_path} need updating:")
+                _print_diff(
+                    difflib.unified_diff(
+                        content.splitlines(keepends=True),
+                        new_content.splitlines(keepends=True),
+                        fromfile=f"{note_path.name} (original)",
+                        tofile=f"{note_path.name} (modified)",
+                    )
                 )
-                print(new_content)
+                if not dry_run:
+                    note_path.write_text(new_content, encoding="utf-8")
+                    logger.info(f"Updated links in: {note_path}")
+                else:
+                    logger.info(f"DRY RUN: Would update links in: {note_path}")
+            else:
+                logger.warning(
+                    f"No changes made to {note_path}, though it was identified as a linking note."
+                )
         except Exception as e:
-            logger.error(f"Failed to update links in {note_path}: {e}")
+            logger.exception(f"Failed to update links in {note_path}: {e}")
 
 
 def _interpret_dir_config(vault_root: Path, audio_path: Path, config_str: str) -> Path:
@@ -526,7 +628,7 @@ def process_audio_file(
         raise ValueError(f"File hash changed during processing for {audio_filename}, aborting")
 
     replace_links_in_notes(
-        vault_root, linking_notes, audio_filename, transcript_note_path, dry_run=dry_run
+        vault_root, linking_notes, audio_filename, transcript_note_path, title, dry_run=dry_run
     )
     if not dry_run:
         logger.info(f"Removing original audio file because everything else succeeded: {audio_path}")

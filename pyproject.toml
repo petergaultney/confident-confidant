@@ -1,7 +1,7 @@
 [project]
 name = "confident-confidant"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "Use spooky math to transform audio notes into transcripts and summaries"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
