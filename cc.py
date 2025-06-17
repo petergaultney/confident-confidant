@@ -38,7 +38,7 @@ def _openai_api_key() -> str:
     return open(os.path.expanduser("~/.keys/openai-api")).read().strip()
 
 
-def _set_api_key(env_var: str):
+def _set_api_key(env_var: str) -> None:
     os.environ[env_var] = os.environ.get(env_var) or _API_KEYS[env_var]()
 
 
@@ -48,7 +48,7 @@ _API_KEYS = {
 }
 
 
-def activate_api_keys():
+def activate_api_keys() -> None:
     """So you don't have to have all of them in case you only use one."""
     list(map(_set_api_key, _API_KEYS.keys()))
 
@@ -333,7 +333,7 @@ def transform_transcript_into_note(
 
     prompt = (
         textwrap.dedent(
-            f"""
+            """
         Please analyze the raw transcript at the end and provide:
 
         1. A short title (3-7 words, suitable for a filename) - put this as the very first
@@ -387,7 +387,7 @@ def create_transcript_note(
     title: str,
     prompt_response: str,
     file_hash: str,
-) -> Path:
+) -> None:
     """Create the transcript note with metadata."""
     logger.info(f"Creating transcript note: {transcript_note_path}")
 
@@ -409,7 +409,6 @@ size: {file_size_mb:.2f} MB | processed: {datetime.now().strftime("%Y-%m-%d %H:%
 
     transcript_note_path.parent.mkdir(parents=True, exist_ok=True)
     transcript_note_path.write_text(content, encoding="utf-8")
-    return transcript_note_path
 
 
 def create_new_audio_path(original_path: Path, target_dir: Path, new_filename: str) -> Path:
@@ -533,7 +532,7 @@ def process_audio_file(
     transcript_note_path = (
         _interpret_dir_config(vault_root, audio_path, tconfig.transcripts_dir) / f"{filename_base}.md"
     )
-    transcript_note = create_transcript_note(
+    create_transcript_note(
         vault_root,
         new_audio_path,
         transcript_note_path,
@@ -568,7 +567,7 @@ def process_vault_recordings(
     else:
         # Find all unrenamed audio recordings
         audio_patterns = ["Recording *.webm", "Recording *.m4a"]
-        all_audio_files = itertools.chain.from_iterable(
+        all_audio_files = itertools.chain.from_iterable(  # type: ignore[assignment]
             process_vault_path.rglob(p) for p in audio_patterns
         )
         logger.info(f"Looking for linked audio recordings in directory: {process_vault_path}")

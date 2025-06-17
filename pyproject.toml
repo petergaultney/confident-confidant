@@ -19,3 +19,23 @@ dev = [
 
 [tool.ruff]
 line-length = 105
+
+[[tool.mypy.overrides]]
+module = [
+    "hjson",
+]
+ignore_missing_imports = true
+
+
+[tool.mypy]
+mypy_path = "cc.py"
+namespace_packages = true
+explicit_package_bases = true
+exclude = '''(?x)(
+    build/
+    | dist/
+    | \S+\.egg-info/
+)'''
+check_untyped_defs = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
