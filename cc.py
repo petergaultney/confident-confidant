@@ -25,8 +25,59 @@ import hjson
 import openai
 from litellm import completion
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+_DEFAULT_NOTE_PROMPT = textwrap.dedent(
+    """
+    2. A concise summary (2-3 sentences) - I am the speaker, so use first-person perspective
+    3. A complete and organized markdown-native outline,
+        with the highest level of heading being `##`,
+        because it will be embedded inside an existing markdown document.
+        If it makes sense for the content, try to orient around high level categories like
+        "intuitions", "constraints", "assumptions",
+        "alternatives or rejected ideas", "tradeoffs", and "next steps",
+        though these don't necessarily need to be present or even the headings.
+       If the audio is more like a retelling of my day, then write the outline without headings,
+        but in three distinct sections as:
+          A. bullet points of things I worked on
+          B. specific 'tasks' for the future (format as Markdown tasks, e.g. ` - [ ] <task text>`
+          C. Remaining insights, through-lines, or points to ponder.
+        If you think it fits neither of these categories, use your best judgment on the outline.
+    4. A readable transcript of the audio, broken up into paragraphs.
+        Never leave the most key thoughts buried in long paragraphs.
+        Change ONLY whitespace!
+
+    Format your response as:
+    # Summary
+
+    {summary}
+
+    # Outline
+
+    {outline}
+
+    # Full transcript
+
+    {full_readable_transcript}
+    """
+)
+
+
+@dataclass
+class ConfidentConfidantConfig:
+    transcription_model: str = "whisper-1"  # or "gpt-4o-transcribe"
+    transcription_prompt: str = ""
+    note_model: str = "anthropic/claude-sonnet-4-20250514"
+    note_prompt: str = _DEFAULT_NOTE_PROMPT
+    audio_dir: str = "./cc/audio"
+    # dirs can be relative to the original audio file (starts with ./) or to the vault root (starts with :)
+    notes_dir: str = "./cc/notes"
+    datetime_fmt: str = "%y-%m-%d_%H%M"  # very opinionated, sorry - I don't expect to live until 2100
+    skip_dir: bool = False
+    # if True, skip any files in this directory, and in subdirectories that do not have more specific config.
+
+
+_DEFAULT_CONFIG = ConfidentConfidantConfig()
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -161,59 +212,6 @@ def _test_transcript_equivalence(original: str, modified: str) -> bool:
     original_cleaned = re.sub(r"\s+", " ", original).strip().lower()
     modified_cleaned = re.sub(r"\s+", " ", modified).strip().lower()
     return original_cleaned in modified_cleaned
-
-
-_DEFAULT_NOTE_PROMPT = textwrap.dedent(
-    """
-    2. A concise summary (2-3 sentences) - I am the speaker, so use first-person perspective
-    3. A complete and organized markdown-native outline,
-        with the highest level of heading being `##`,
-        because it will be embedded inside an existing markdown document.
-        If it makes sense for the content, try to orient around high level categories like
-        "intuitions", "constraints", "assumptions",
-        "alternatives or rejected ideas", "tradeoffs", and "next steps",
-        though these don't necessarily need to be present or even the headings.
-       If the audio is more like a retelling of my day, then write the outline without headings,
-        but in three distinct sections as:
-          A. bullet points of things I worked on
-          B. specific 'tasks' for the future (format as Markdown tasks, e.g. ` - [ ] <task text>`
-          C. Remaining insights, through-lines, or points to ponder.
-        If you think it fits neither of these categories, use your best judgment on the outline.
-    4. A readable transcript of the audio, broken up into paragraphs.
-        Never leave the most key thoughts buried in long paragraphs.
-        Change ONLY whitespace!
-
-    Format your response as:
-    # Summary
-
-    {summary}
-
-    # Outline
-
-    {outline}
-
-    # Full transcript
-
-    {full_readable_transcript}
-    """
-)
-
-
-@dataclass
-class ConfidentConfidantConfig:
-    transcription_model: str = "whisper-1"  # or "gpt-4o-transcribe"
-    transcription_prompt: str = ""
-    note_model: str = "anthropic/claude-sonnet-4-20250514"
-    note_prompt: str = _DEFAULT_NOTE_PROMPT
-    audio_dir: str = "./cc/audio"
-    # dirs can be relative to the original audio file (starts with ./) or to the vault root (starts with :)
-    notes_dir: str = "./cc/notes"
-    datetime_fmt: str = "%y-%m-%d_%H%M"  # very opinionated, sorry - I don't expect to live until 2100
-    skip_dir: bool = False
-    # if True, skip any files in this directory, and in subdirectories that do not have more specific config.
-
-
-_DEFAULT_CONFIG = ConfidentConfidantConfig()
 
 
 def extract_heading_content(markdown_text: str, heading_name: str) -> None | str:
@@ -704,6 +702,8 @@ def _find_vault_root(any_path: Path) -> Path:
 
 if __name__ == "__main__":
     import argparse
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     parser = argparse.ArgumentParser(
         description=(
