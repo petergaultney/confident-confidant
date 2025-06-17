@@ -14,6 +14,7 @@ import os
 import re
 import shutil
 import textwrap
+import time
 import typing as ty
 from dataclasses import dataclass
 from datetime import datetime
@@ -570,17 +571,23 @@ def process_vault_recordings(
         all_audio_files = itertools.chain.from_iterable(
             process_vault_path.rglob(p) for p in audio_patterns
         )
-        logger.info(f"Will look for audio recordings in directory: {process_vault_path}")
+        logger.info(f"Looking for linked audio recordings in directory: {process_vault_path}")
 
     processed_count = 0
+    error_count = 0
     for audio_file in all_audio_files:
         try:
             if process_recording(audio_file):
                 processed_count += 1
         except Exception as e:
             logger.exception(f"Error processing {audio_file}: {e}")
+            error_count += 1
 
-    logger.info(f"Processing complete. Files successfully processed: {processed_count}")
+    msg = f"Files successfully processed: {processed_count}"
+    if error_count > 0:
+        msg += f"; errors encountered: {error_count}"
+    if processed_count + error_count > 0:
+        logger.info(msg)
 
 
 if __name__ == "__main__":
