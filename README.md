@@ -57,7 +57,7 @@ Obsidian](https://github.com/LostPaul/obsidian-folder-notes).
 # Future work
 
 - [ ] Support non-Obsidian style links
-- [ ] Discover config at arbitrary level of header nesting
+- [x] Discover config at arbitrary level of header nesting
 - [ ] Auto-configure default LLM based on discovered API key(s)
 - [ ] Provide an outline/summary refinement mode, where an already-transcribed recording
       and its existing note can be iterated on with refined LLM prompts?

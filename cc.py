@@ -159,65 +159,58 @@ class ConfidentConfidantConfig:
 _DEFAULT_CONFIG = ConfidentConfidantConfig()
 
 
-def extract_heading_content(markdown_text: str, header_string: str) -> None | str:
+def extract_heading_content(markdown_text: str, heading_name: str) -> None | str:
     """
-    Extract content between a heading and the next same-level heading,
-    ignoring any headers that appear within code blocks.
+    Finds the first heading with the given name at any level and extracts all
+    content underneath it, stopping at the next heading of the same or higher
+    level. It correctly ignores any headers within fenced code blocks.
 
     Args:
-        markdown_text: The full markdown string
-        header_string: The full header string (e.g., "# Introduction" or "## Main Content")
+        markdown_text: The full markdown string.
+        heading_name: The text of the heading to find (e.g., "Introduction").
 
     Returns:
-        The content between the heading and next same-level heading, or None if not found
+        The content under the specified heading, or None if not found.
     """
-    # Calculate heading level by counting # at the start
-    heading_level = 0
-    for char in header_string:
-        if char != "#":
-            break
-        heading_level += 1
-
-    if heading_level == 0:
-        raise ValueError("Header string must start with # characters")
-
-    # Extract the heading text
-    heading_text = header_string.lstrip("#").strip()
-    hash_marks = "#" * heading_level
-
     lines = markdown_text.split("\n")
-    in_code_block = False
-    found_target_heading = False
     content_lines = []
+    in_code_block = False
+    found_heading_level = 0  # Level of the heading we are looking for (1-6)
 
     for line in lines:
-        # Check for fenced code block boundaries
-        if line.startswith("```") and not line.startswith("````"):
+        # Toggle code block state but continue collecting lines if we're in the target section
+        if line.strip().startswith("```"):
             in_code_block = not in_code_block
-            if found_target_heading:
+            if found_heading_level:
                 content_lines.append(line)
             continue
 
-        # If we're in a code block, don't process headers
+        # If we are inside a code block, just collect the line and skip heading checks
         if in_code_block:
-            if found_target_heading:
+            if found_heading_level:
                 content_lines.append(line)
             continue
 
-        # Check if this is our target heading
-        if line.startswith(hash_marks + " ") and line[len(hash_marks) :].strip() == heading_text:
-            found_target_heading = True
-            continue
+        # Check for a heading using regex
+        match = re.match(r"^(#+)\s+(.*)", line)
+        if match:
+            current_level = len(match.group(1))
+            current_name = match.group(2).strip()
 
-        # Check if this is another heading at the same level (end condition)
-        if found_target_heading and line.startswith(hash_marks + " "):
-            break
+            if not found_heading_level and current_name == heading_name:
+                # Found the start of our target section
+                found_heading_level = current_level
+                continue
 
-        # Collect content if we're in the target section
-        if found_target_heading:
+            if found_heading_level and current_level <= found_heading_level:
+                # Found the end of our section (next heading of same or higher level)
+                break
+
+        # Collect content if we are within the target section
+        if found_heading_level:
             content_lines.append(line)
 
-    return "\n".join(content_lines).rstrip() if found_target_heading else None
+    return "\n".join(content_lines).rstrip() if found_heading_level else None
 
 
 def extract_code_block(text: str) -> None | str:
@@ -265,13 +258,13 @@ def _read_config_from_directory_hierarchy(any_path: Path) -> ConfidentConfidantC
         return _DEFAULT_CONFIG  # reached the root of the filesystem, no config found
 
     def parse_config(config_md: str) -> ConfidentConfidantConfig:
-        config_section = extract_heading_content(config_md, "# Confident Confidant Config")
-        if not config_section:
+        cc_config_md = extract_heading_content(config_md, "Confident Confidant Config")
+        if not cc_config_md:
             return _DEFAULT_CONFIG
 
         config = ConfidentConfidantConfig()
 
-        base_config_text = extract_heading_content(config_section, "## Base Config") or ""
+        base_config_text = extract_heading_content(cc_config_md, "Base Config") or ""
         if escaped_config := extract_code_block(base_config_text):
             base_config_text = escaped_config
         base_config_text = base_config_text.strip()
@@ -285,10 +278,10 @@ def _read_config_from_directory_hierarchy(any_path: Path) -> ConfidentConfidantC
             )
             config.note_model = base_config.get("note_model") or config.note_model
 
-        if transcription_prompt := extract_heading_content(config_section, "## Transcription Prompt"):
+        if transcription_prompt := extract_heading_content(cc_config_md, "## Transcription Prompt"):
             config.transcription_prompt = transcription_prompt
 
-        note_prompt = extract_heading_content(config_section, "## Note Prompt")
+        note_prompt = extract_heading_content(cc_config_md, "## Note Prompt")
         if note_prompt:
             if escaped_prompt := extract_code_block(note_prompt):
                 note_prompt = escaped_prompt
