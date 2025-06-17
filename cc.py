@@ -453,19 +453,6 @@ def replace_links_in_notes(
             logger.error(f"Failed to update links in {note_path}: {e}")
 
 
-@lru_cache
-def _find_vault_root(any_path: Path) -> Path:
-    # recursive
-    """Find the root of the Vault by looking for the .obsidian or .git directory."""
-    if (any_path / ".obsidian").is_dir() or (any_path / ".git").is_dir():
-        return any_path
-
-    if any_path.parent == any_path:
-        return any_path
-
-    return _find_vault_root(any_path.parent)
-
-
 def _interpret_dir_config(vault_root: Path, audio_path: Path, config_str: str) -> Path:
     """
     ./ means relative to the audio file's directory.
@@ -479,6 +466,7 @@ def _interpret_dir_config(vault_root: Path, audio_path: Path, config_str: str) -
 
 
 def process_audio_file(
+    vault_root: Path,
     dry_run: bool,
     audio_path: Path,
 ) -> None | Path:
@@ -487,7 +475,6 @@ def process_audio_file(
     All configuration for this is read from the directory hierarchy of the audio file.
     """
 
-    vault_root = _find_vault_root(audio_path)
     audio_filename = audio_path.name
     tconfig = _read_config_from_directory_hierarchy(audio_path)
 
@@ -582,6 +569,41 @@ def process_vault_recordings(
         logger.info(msg)
 
 
+@lru_cache
+def _find_vault_root_recursive(any_path: Path) -> Path:
+    # recursive
+    """Find the root of the Vault by looking for the .obsidian or .git directory.
+
+    This is really only used for deciding where to look for links to your audio files.
+
+    If it resolves to the root of the filesystem, we'll ignore this and instead use
+    whatever path you provided at the root of the script.
+    """
+    if (
+        (any_path / ".obsidian").is_dir()
+        or (any_path / ".loqseq").is_dir()
+        or (any_path / ".root").is_dir()
+        or (any_path / ".git").is_dir()
+    ):
+        return any_path
+
+    if any_path.parent == any_path:
+        return any_path
+
+    return _find_vault_root_recursive(any_path.parent)
+
+
+def _find_vault_root(any_path: Path) -> Path:
+    vault_root = _find_vault_root_recursive(any_path)
+    if vault_root == vault_root.parent:
+        logger.warning(
+            f"Could not find a vault root for '{any_path}'. Using that path as the vault root."
+        )
+        return any_path
+    logger.info(f"Found vault root: {vault_root}")
+    return vault_root
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -609,11 +631,13 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
     run = partial(
         process_vault_recordings,
         args.process_vault_dir,
         partial(
             process_audio_file,
+            _find_vault_root(args.process_vault_dir),
             args.no_mutate,
         ),
     )
