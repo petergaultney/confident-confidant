@@ -29,6 +29,9 @@ To 'test' (avoid modifying any of your existing notes), run as `./cc.py --no-mut
 this will create a new note and will make a copy of your audio file, but will not change
 existing notes.
 
+Run in an infinite loop ('server mode') with `--loop`. The sleep is hardcoded to 10
+seconds because I am lazy.
+
 ### Config
 
 Reads its config from the Markdown 'vault' itself. An example config markdown that mostly mirrors
@@ -48,3 +51,17 @@ Config will be looked for in files with these names as we recurse upward:
 
 The last follows the convention of the ['Folder Notes' plugin for
 Obsidian](https://github.com/LostPaul/obsidian-folder-notes).
+
+# Future work
+
+- [ ] Support non-Obsidian style links
+- [ ] Discover config at arbitrary level of header nesting
+- [ ] Auto-configure default LLM based on discovered API key(s)
+- [ ] Provide an outline/summary refinement mode, where an already-transcribed recording
+      and its existing note can be iterated on with refined LLM prompts?
+- [ ] Pick up partial configs recursively? E.g., allow defining the desired model and
+      directory config at the root of a vault, while still having specific prompts per
+      directory.
+- [ ] Potentially (configurably) allow embedding the resulting note _within_ the note
+      where the audio file was linked. This would probably require some Markdown
+      cleverness to respect headings.
