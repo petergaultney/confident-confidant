@@ -63,7 +63,7 @@ _DEFAULT_NOTE_PROMPT = textwrap.dedent(
 
 @dataclass
 class ConfidentConfidantConfig:
-    transcription_model: str = "whisper-1"  # or "gpt-4o-transcribe"
+    transcription_model: str = "gpt-4o-transcribe"  # or "whisper-1", or "gpt-4o-mini-transcribe"
     transcription_prompt: str = ""
     note_model: str = "anthropic/claude-sonnet-4-20250514"
     note_prompt: str = _DEFAULT_NOTE_PROMPT
