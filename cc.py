@@ -572,6 +572,8 @@ def process_audio_file(
 
     All configuration for this is read from the directory hierarchy of the audio file.
     """
+    if vault_root / ".trash" in audio_path.parents:
+        return None
 
     audio_filename = audio_path.name
     tconfig = _read_config_from_directory_hierarchy(audio_path)
@@ -584,7 +586,7 @@ def process_audio_file(
 
     linking_notes = find_linking_notes(vault_root, audio_filename)
     if not linking_notes:
-        logger.info(f"No notes link to {audio_filename}; we will leave this one untranscribed.")
+        logger.info(f"No notes link to {audio_path}; we will leave this one untranscribed.")
         return None
 
     logger.info(f"Processing audio file: {audio_path}")
