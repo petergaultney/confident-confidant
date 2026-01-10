@@ -380,7 +380,7 @@ def transform_transcript_into_note(
 
         1. A short title (3-7 words, suitable for a filename) - put this as the very first
            line, followed by a newline, regardless of any formatting instructions that follow.
-           This must never be missing, and it must always be at least 3 words and more than 7,
+           This must never be missing, and it must always be at least 3 words and no more than 7,
            and they must be as unique as possible using the content of the transcript, since this will
            be part of a filename.
         """
