@@ -401,7 +401,7 @@ def transform_transcript_into_note(
 
     first_line_is_title, rest_of_note = content.split("\n", 1)
     if not _test_transcript_equivalence(transcript, rest_of_note):
-        rest_of_note += f"\n# Raw transcript\n{transcript}"
+        rest_of_note = rest_of_note.rstrip() + f"\n\n# Raw transcript\n\n{transcript}"
     return rest_of_note, first_line_is_title.strip()
 
 
@@ -732,12 +732,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    process_vault_dir = args.process_vault_dir.resolve()  # resolve, e.g., '.'
     run = partial(
         process_vault_recordings,
-        args.process_vault_dir,
+        process_vault_dir,
         partial(
             process_audio_file,
-            _find_vault_root(args.process_vault_dir),
+            _find_vault_root(process_vault_dir),
             args.no_mutate,
         ),
     )
