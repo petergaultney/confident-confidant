@@ -5,14 +5,14 @@ description = "Use spooky math to transform audio notes into transcripts and sum
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "hjson",
+  "hjson",
 	"litellm",
 	"openai",
 ]
 
 [dependency-groups]
 dev = [
-    "ruff",
+  "ruff",
 	"mypy",
 	"mypy-extensions",
 ]
@@ -22,7 +22,7 @@ line-length = 105
 
 [[tool.mypy.overrides]]
 module = [
-    "hjson",
+  "hjson",
 ]
 ignore_missing_imports = true
 
