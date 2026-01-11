@@ -282,10 +282,10 @@ def extract_code_block(text: str) -> None | str:
         return None
 
     # Pattern explanation:
-    # ^\s*```[^`].*?$ - Opening line: exactly 3 backticks, non-backtick chars, end of line
+    # ^\s*```[^`]*?$ - Opening line: exactly 3 backticks, non-backtick chars, end of line
     # (.*?) - Capture the code content (non-greedy)
     # ^\s*```\s*$ - Closing line: optional whitespace, exactly 3 backticks, optional whitespace, end of line
-    pattern = r"^\s*```[^`].*?$\n(.*?)^\s*```\s*$"
+    pattern = r"^\s*```[^`]*?$\n(.*?)^\s*```\s*$"
 
     match = re.search(pattern, text, re.MULTILINE | re.DOTALL)
     return match.group(1).rstrip("\n") if match else None
@@ -329,11 +329,10 @@ def _read_config_from_directory_hierarchy(any_path: Path) -> ConfidentConfidantC
                 if hasattr(config, key):
                     setattr(config, key, value)
 
-        if transcription_prompt := extract_heading_content(cc_config_md, "## Transcription Prompt"):
+        if transcription_prompt := extract_heading_content(cc_config_md, "Transcription Prompt"):
             config.transcription_prompt = transcription_prompt
 
-        note_prompt = extract_heading_content(cc_config_md, "## Note Prompt")
-        if note_prompt:
+        if note_prompt := extract_heading_content(cc_config_md, "Note Prompt"):
             if escaped_prompt := extract_code_block(note_prompt):
                 note_prompt = escaped_prompt
             config.note_prompt = note_prompt.strip()
