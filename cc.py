@@ -148,6 +148,11 @@ _LINK_PATTERN = re.compile(
 
 
 def _resolve_obsidian_file_href(vault_root: Path, target_str: str) -> Path | None:
+    # obsidian hrefs are quite permissive; you can refer to a file with just its
+    # filename, with a relpath, with a _partial_ relpath, or with an absolute
+    # path.
+    # for our purposes, we try to find a find a file anywhere in the vault
+    # matching the target_str
     target_str = target_str.strip()
     candidates = tuple(vault_root.rglob(f"**/{target_str}"))
     if not candidates:
@@ -165,6 +170,9 @@ def _resolve_file_href(src_file: Path, target_str: str) -> Path | None:
 
     target_str = target_str.removeprefix("file://")
     target_str = urllib.parse.unquote(target_str)
+    # ^ you can link to files with url-encoding, and in fact this is the default
+    # behavior for obsidian when there are spaces in the file name (it converts
+    # ' ' to '%20').  we unquote it here in order to have a valid file name.
 
     target = Path(target_str)
     if target.is_absolute():
