@@ -184,9 +184,9 @@ def _obsidian_link_matches_target(
     if not candidates:
         return False
 
-    # If target_str has path components (e.g., "subfolder/note"), filter candidates
-    # by checking if their path ends with the target string pattern.
+    # Filter candidates based on path and/or extension in the link target
     if "/" in link_target_str:
+        # Link has path components (e.g., "subfolder/note") - filter by path suffix
         pattern = "/" + link_target_str.lstrip("/")
         if target_path.suffix:
             # Link includes extension (e.g., "subfolder/note.md") - match exactly
@@ -194,6 +194,10 @@ def _obsidian_link_matches_target(
         else:
             # Link has no extension (e.g., "subfolder/note") - match any extension
             filtered = {p for p in candidates if str(p.with_suffix("")).endswith(pattern)}
+        candidates = filtered
+    elif target_path.suffix:
+        # No path but has extension (e.g., "note.md") - filter by extension
+        filtered = {p for p in candidates if p.suffix == target_path.suffix}
         candidates = filtered
 
     if not candidates:
