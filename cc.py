@@ -515,6 +515,59 @@ def transform_transcript_into_note(
     return rest_of_note, first_line_is_title.strip()
 
 
+def summarize_transcript(transcript_path: Path, output_path: Path | None = None) -> Path:
+    """Summarize an existing transcript file and write the result to a markdown file.
+
+    Args:
+        transcript_path: Path to the transcript .txt file to summarize
+        output_path: Optional output file path. If not provided, generates a filename
+                    using the same pattern as audio processing: {timestamp}_{title}.md
+
+    Returns:
+        Path to the created markdown file
+    """
+    transcript_path = transcript_path.resolve()
+
+    # Validate input file
+    if not transcript_path.exists():
+        raise FileNotFoundError(f"Transcript file not found: {transcript_path}")
+
+    if not transcript_path.is_file():
+        raise ValueError(f"Path is not a file: {transcript_path}")
+
+    # Read transcript content
+    logger.info(f"Reading transcript from: {transcript_path}")
+    transcript_content = transcript_path.read_text(encoding="utf-8")
+
+    if not transcript_content.strip():
+        raise ValueError("Transcript file is empty")
+
+    # Load config from directory hierarchy
+    tconfig = _read_config_from_directory_hierarchy(transcript_path)
+
+    # Perform the summarization
+    logger.info(f"Generating summary using model: {tconfig.note_model}")
+    note_content, title = transform_transcript_into_note(
+        ll_model=tconfig.note_model,
+        transcript=transcript_content,
+        prompt=tconfig.note_prompt,
+    )
+
+    # Determine output path
+    if output_path is None:
+        filename_base = _generate_new_filename(tconfig.datetime_fmt, transcript_path, title)
+        output_path = transcript_path.parent / f"{filename_base}.md"
+    else:
+        output_path = output_path.resolve()
+
+    # Write the note
+    full_content = f"# {title}\n\n{note_content}"
+    output_path.write_text(full_content, encoding="utf-8")
+    logger.info(f"Summary written to: {output_path}")
+
+    return output_path
+
+
 def _sanitize_title(title: str) -> str:
     """Convert title to filesystem-safe filename."""
     # Replace spaces with dashes, remove unsafe characters
@@ -816,6 +869,7 @@ def _find_vault_root(any_path: Path) -> Path:
 
 if __name__ == "__main__":
     import argparse
+    import sys
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -826,30 +880,70 @@ if __name__ == "__main__":
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
+
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # Process subcommand (existing functionality)
+    process_parser = subparsers.add_parser(
+        "process",
+        help="Process audio recordings in a vault directory",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    process_parser.add_argument(
         "process_vault_dir",
         type=Path,
         help="The directory that you want to process, which should be within an Obsidian vault.",
     )
-    parser.add_argument(
+    process_parser.add_argument(
         "--no-mutate",
         action="store_true",
         help="Don't do the actual file move and link mutation - this is a quasi dry-run.",
     )
-    parser.add_argument(
+    process_parser.add_argument(
         "--loop",
         action="store_true",
         help="Run the script in a loop, processing new files as they appear.",
     )
 
+    # Summarize subcommand (new functionality)
+    summarize_parser = subparsers.add_parser(
+        "summarize",
+        help="Summarize an existing transcript file using an LLM",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    summarize_parser.add_argument(
+        "transcript_file",
+        type=Path,
+        help="Path to the transcript .txt file to summarize",
+    )
+    summarize_parser.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        default=None,
+        help="Output file path (default: generates {timestamp}_{title}.md in same directory)",
+    )
+
+    # Handle backward compatibility: if first arg is a path and not a known subcommand,
+    # treat it as the legacy `process` invocation
+    if len(sys.argv) > 1 and sys.argv[1] not in ("process", "summarize", "-h", "--help"):
+        # Check if it looks like a path (exists or could be a path)
+        potential_path = Path(sys.argv[1])
+        if potential_path.exists():
+            sys.argv.insert(1, "process")
+
     args = parser.parse_args()
 
-    process_vault_dir = args.process_vault_dir.resolve()  # resolve, e.g., '.'
-
-    run = partial(process_vault_recordings, process_vault_dir, args.no_mutate)
-
-    run()
-    if args.loop:
-        while True:
-            time.sleep(10)
-            run()
+    if args.command == "process":
+        process_vault_dir = args.process_vault_dir.resolve()
+        run = partial(process_vault_recordings, process_vault_dir, args.no_mutate)
+        run()
+        if args.loop:
+            while True:
+                time.sleep(10)
+                run()
+    elif args.command == "summarize":
+        summarize_transcript(args.transcript_file, args.output)
+    else:
+        parser.print_help()
+        sys.exit(1)
