@@ -1,11 +1,3 @@
-#!/usr/bin/env -S uv run --script
-# /// script
-# dependencies = [
-#   "litellm",
-#   "openai",
-#   "hjson",
-# ]
-# ///
 import itertools
 import logging
 import time
@@ -185,9 +177,9 @@ def process_vault_recordings(process_vault_path: Path, dry_run: bool) -> None:
         logger.info(msg)
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Entry point for `cc` command - process audio recordings."""
     import argparse
-    import sys
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -198,43 +190,48 @@ if __name__ == "__main__":
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
-
-    # Process subcommand (existing functionality)
-    process_parser = subparsers.add_parser(
-        "process",
-        help="Process audio recordings in a vault directory",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    process_parser.add_argument(
+    parser.add_argument(
         "process_vault_dir",
         type=Path,
         help="The directory that you want to process, which should be within an Obsidian vault.",
     )
-    process_parser.add_argument(
+    parser.add_argument(
         "--no-mutate",
         action="store_true",
         help="Don't do the actual file move and link mutation - this is a quasi dry-run.",
     )
-    process_parser.add_argument(
+    parser.add_argument(
         "--loop",
         action="store_true",
         help="Run the script in a loop, processing new files as they appear.",
     )
 
-    # Summarize subcommand (new functionality)
-    summarize_parser = subparsers.add_parser(
-        "summarize",
-        help="Summarize an existing transcript file using an LLM",
+    args = parser.parse_args()
+    process_vault_dir = args.process_vault_dir.resolve()
+    run = partial(process_vault_recordings, process_vault_dir, args.no_mutate)
+    run()
+    if args.loop:
+        while True:
+            time.sleep(10)
+            run()
+
+
+def main_summarize() -> None:
+    """Entry point for `cc-summarize` command - summarize existing transcripts."""
+    import argparse
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+    parser = argparse.ArgumentParser(
+        description="Summarize an existing transcript file using an LLM.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    summarize_parser.add_argument(
+    parser.add_argument(
         "transcript_file",
         type=Path,
         help="Path to the transcript .txt file to summarize",
     )
-    summarize_parser.add_argument(
+    parser.add_argument(
         "--output",
         "-o",
         type=Path,
@@ -242,26 +239,9 @@ if __name__ == "__main__":
         help="Output file path (default: generates {timestamp}_{title}.md in same directory)",
     )
 
-    # Handle backward compatibility: if first arg is a path and not a known subcommand,
-    # treat it as the legacy `process` invocation
-    if len(sys.argv) > 1 and sys.argv[1] not in ("process", "summarize", "-h", "--help"):
-        # Check if it looks like a path (exists or could be a path)
-        potential_path = Path(sys.argv[1])
-        if potential_path.exists():
-            sys.argv.insert(1, "process")
-
     args = parser.parse_args()
+    summarize_transcript(args.transcript_file, args.output)
 
-    if args.command == "process":
-        process_vault_dir = args.process_vault_dir.resolve()
-        run = partial(process_vault_recordings, process_vault_dir, args.no_mutate)
-        run()
-        if args.loop:
-            while True:
-                time.sleep(10)
-                run()
-    elif args.command == "summarize":
-        summarize_transcript(args.transcript_file, args.output)
-    else:
-        parser.print_help()
-        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

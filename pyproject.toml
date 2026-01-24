@@ -4,32 +4,26 @@ version = "0.2.0"
 description = "Use spooky math to transform audio notes into transcripts and summaries"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = [
-  "hjson",
-	"litellm",
-	"openai",
-]
+dependencies = ["hjson", "litellm", "openai"]
 
 [dependency-groups]
-dev = [
-  "ruff",
-	"mypy",
-	"mypy-extensions",
-	"pytest",
-]
+dev = ["ruff", "mypy", "mypy-extensions", "pytest"]
 
 [tool.ruff]
 line-length = 105
 
 [[tool.mypy.overrides]]
-module = [
-  "hjson",
-]
+module = ["hjson"]
 ignore_missing_imports = true
 
 
+[project.scripts]
+# cc is already a program on my PATH
+coco = "cc.__main__:main"
+coco-summarize = "cc.__main__:main_summarize"
+
 [tool.mypy]
-mypy_path = "cc.py"
+mypy_path = "."
 namespace_packages = true
 explicit_package_bases = true
 exclude = '''(?x)(
