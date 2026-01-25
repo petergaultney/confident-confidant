@@ -1,0 +1,12 @@
+{
+  "python-envs.pythonProjects": [],
+  "editor.formatOnSave": true,
+  "editor.formatOnSaveMode": "file",
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      "source.fixAll": "explicit"
+    }
+  },
+}
