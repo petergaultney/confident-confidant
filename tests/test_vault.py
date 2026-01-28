@@ -1,16 +1,14 @@
-"""Tests for the vault index and link resolution logic."""
-
 from pathlib import Path
 
 import pytest
 
-from cc import (
-    Link,
+from cc.vault import (
     VaultIndex,
-    build_vault_index,
-    _obsidian_link_matches_target,
+    _find_links_to_file,
+    _Link,
     _markdown_link_matches_target,
-    find_links_to_file,
+    _obsidian_link_matches_target,
+    build_vault_index,
 )
 
 
@@ -139,7 +137,7 @@ class Test_obsidian_link_matches_target:
             p.touch()
         index = build_vault_index(tmp_path)
 
-        # Link is ambiguous between a/recording and b/recording, but target is "other"
+        # _Link is ambiguous between a/recording and b/recording, but target is "other"
         assert not _obsidian_link_matches_target(index, "recording", other)
 
     def test_partial_path_disambiguates(self, tmp_path: Path) -> None:
@@ -244,7 +242,7 @@ class Test_markdown_link_matches_target:
 
 
 class Test_find_links_to_file:
-    """Tests for find_links_to_file function."""
+    """Tests for _find_links_to_file function."""
 
     def test_finds_obsidian_link(self, tmp_path: Path) -> None:
         """Finds obsidian-style link to target."""
@@ -254,9 +252,9 @@ class Test_find_links_to_file:
         note.write_text("Check out this recording: [[recording]]")
         index = build_vault_index(tmp_path)
 
-        links = find_links_to_file(index=index, in_md_file=note, target_file=target)
+        links = _find_links_to_file(index=index, in_md_file=note, target_file=target)
         assert links == [
-            Link(full_match="[[recording]]", target=target, is_embed=False, style="obsidian", text=None)
+            _Link(full_match="[[recording]]", target=target, is_embed=False, style="obsidian", text=None)
         ]
 
     def test_finds_obsidian_embed(self, tmp_path: Path) -> None:
@@ -267,9 +265,9 @@ class Test_find_links_to_file:
         note.write_text("![[recording.m4a]]")
         index = build_vault_index(tmp_path)
 
-        links = find_links_to_file(index=index, in_md_file=note, target_file=target)
+        links = _find_links_to_file(index=index, in_md_file=note, target_file=target)
         assert links == [
-            Link(
+            _Link(
                 full_match="![[recording.m4a]]",
                 target=target,
                 is_embed=True,
@@ -286,9 +284,9 @@ class Test_find_links_to_file:
         note.write_text("Check out [my recording](./recording.m4a)")
         index = build_vault_index(tmp_path)
 
-        links = find_links_to_file(index=index, in_md_file=note, target_file=target)
+        links = _find_links_to_file(index=index, in_md_file=note, target_file=target)
         assert links == [
-            Link(
+            _Link(
                 full_match="[my recording](./recording.m4a)",
                 target=target,
                 is_embed=False,
@@ -305,16 +303,16 @@ class Test_find_links_to_file:
         note.write_text("First: [[recording]] and second: [[recording.m4a]]")
         index = build_vault_index(tmp_path)
 
-        links = find_links_to_file(index=index, in_md_file=note, target_file=target)
+        links = _find_links_to_file(index=index, in_md_file=note, target_file=target)
         assert links == [
-            Link(
+            _Link(
                 full_match="[[recording]]",
                 target=target,
                 is_embed=False,
                 style="obsidian",
                 text=None,
             ),
-            Link(
+            _Link(
                 full_match="[[recording.m4a]]",
                 target=target,
                 is_embed=False,
@@ -333,9 +331,9 @@ class Test_find_links_to_file:
         note.write_text("Target: [[recording]] Other: [[other]]")
         index = build_vault_index(tmp_path)
 
-        links = find_links_to_file(index=index, in_md_file=note, target_file=target)
+        links = _find_links_to_file(index=index, in_md_file=note, target_file=target)
         assert links == [
-            Link(full_match="[[recording]]", target=target, is_embed=False, style="obsidian", text=None)
+            _Link(full_match="[[recording]]", target=target, is_embed=False, style="obsidian", text=None)
         ]
 
     def test_returns_empty_for_no_matches(self, tmp_path: Path) -> None:
@@ -346,7 +344,7 @@ class Test_find_links_to_file:
         note.write_text("No links here, just text.")
         index = build_vault_index(tmp_path)
 
-        links = find_links_to_file(index=index, in_md_file=note, target_file=target)
+        links = _find_links_to_file(index=index, in_md_file=note, target_file=target)
         assert links == []
 
     def test_preserves_link_text(self, tmp_path: Path) -> None:
@@ -357,9 +355,9 @@ class Test_find_links_to_file:
         note.write_text("[[recording|My Audio Note]]")
         index = build_vault_index(tmp_path)
 
-        links = find_links_to_file(index=index, in_md_file=note, target_file=target)
+        links = _find_links_to_file(index=index, in_md_file=note, target_file=target)
         assert links == [
-            Link(
+            _Link(
                 full_match="[[recording|My Audio Note]]",
                 target=target,
                 is_embed=False,

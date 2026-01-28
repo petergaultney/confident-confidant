@@ -1,4 +1,6 @@
-# `cc.py` - the (overly?) Confident Confidant
+# `coco` - the (overly?) Confident Confidant
+
+(Named `coco` because `cc` is the C compiler.)
 
 Turn audio files within Markdown folders into helpful Markdown notes and transcripts.
 
@@ -20,8 +22,13 @@ Does not need to be pointed at your entire Vault - can run on any subdirectory w
 
 ## Setup
 
-You'll need `uv` [installed](https://docs.astral.sh/uv/getting-started/installation/), to
-provide an automagic `.venv` for this script.
+You'll need `uv` [installed](https://docs.astral.sh/uv/getting-started/installation/).
+
+Install `coco` as an editable tool:
+
+```sh
+uv tool install -e .
+```
 
 You'll need an OpenAI API key and an Anthropic API key. Place them in `~/.keys/openai-api`
 and `~/.keys/anthropic-api`, or set `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` environment variables.
@@ -33,10 +40,10 @@ be supporting.
 
 ## Usage
 
-Use the default prompt and settings by just running the script.
+### `coco` - Process audio recordings
 
 ```sh
-./cc.py <your-vault-dir>
+coco <your-vault-dir>
 ```
 
 To 'test' (avoid modifying any of your existing notes), add the `--no-mutate` flag -
@@ -46,12 +53,21 @@ mutate any existing notes.
 Run in an infinite loop ('server mode') with `--loop`. The sleep is hardcoded to 10
 seconds because I am lazy.
 
+### `coco-summarize` - Summarize an existing transcript
+
+```sh
+coco-summarize <transcript-file>
+```
+
+Takes an existing transcript `.txt` file and generates a summary note. Optionally
+specify an output path with `--output`/`-o`.
+
 ### Config
 
 Reads its config from the Markdown 'vault' itself. An example config markdown that mostly mirrors
 the default config would look like [the file linked here](cc-config.md).
 
-For any given audio file discovered by `cc`, will look recursively 'upward' to find
+For any given audio file discovered by `coco`, will look recursively 'upward' to find
 config. The first found file that contains any config will override the default config,
 and the tool stops recursing upward for further config.
 

@@ -1,3 +1,7 @@
+# 1.0.0
+
+- Modularizes and librarifies `confident-confidant`
+
 ## 0.3.0
 
 - Move default directories to be under a `cc` directory. Rename `transcripts` directory to `notes`.
