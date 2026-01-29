@@ -49,14 +49,25 @@ _DEFAULT_NOTE_PROMPT = textwrap.dedent(
 
 @dataclass
 class ConfidentConfidantConfig:
+    # for transcribing:
     transcription_model: str = "gpt-4o-transcribe"  # or "whisper-1", or "gpt-4o-mini-transcribe"
     transcription_prompt: str = ""
+    reformat_model: str = "gpt-4o"
+    # ^ for stitching together chunk-transcripts if the audio file is long
+    split_audio_approx_every_s: int = 20 * 60  # 20 minutes
+    diarization_model: str = "gpt-4o-transcribe-diarize"
+
+    # for summarizing:
     note_model: str = "anthropic/claude-sonnet-4-20250514"
     note_prompt: str = _DEFAULT_NOTE_PROMPT
+
+    # for outputting:
     audio_dir: str = "./cc/audio"
     # dirs can be relative to the original audio file (starts with ./) or to the vault root (starts with :)
     notes_dir: str = "./cc/notes"
-    datetime_fmt: str = "%y-%m-%d_%H%M"  # very opinionated, sorry - I don't expect to live until 2100
+    datetime_fmt: str = (
+        "%y-%m-%d_%H%M"  # very opinionated, sorry - I don't expect to live until 2100
+    )
     skip_dir: bool = False
     # if True, skip any files in this directory, and in subdirectories that do not have more specific config.
 

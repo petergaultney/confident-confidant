@@ -8,11 +8,18 @@ module-root = ""
 
 [project]
 name = "confident-confidant"
-version = "1.0.0"
+version = "2.0.0"
 description = "Use spooky math to transform audio notes into transcripts and summaries"
 readme = "README.md"
-requires-python = ">=3.10"
-dependencies = ["hjson", "litellm", "openai"]
+requires-python = ">=3.13"
+dependencies = [
+  "hjson",
+  "litellm",
+  "openai>=2.0.0",
+  "thds-core",
+  "thds-humenc",
+  "thds-mops",
+]
 
 [dependency-groups]
 dev = ["ruff", "mypy", "mypy-extensions", "pytest"]
@@ -20,15 +27,13 @@ dev = ["ruff", "mypy", "mypy-extensions", "pytest"]
 [tool.ruff]
 line-length = 105
 
-[[tool.mypy.overrides]]
-module = ["hjson"]
-ignore_missing_imports = true
-
-
 [project.scripts]
 # cc is already a program on my PATH
 coco = "cc.__main__:main"
 coco-summarize = "cc.__main__:main_summarize"
+transcribe = "cc.transcribe.__main__:cli"
+transcribe-diarize = "cc.transcribe.diarize.__main__:cli"
+transcribe-label = "cc.transcribe.diarize.label:cli"
 
 [tool.mypy]
 mypy_path = "."
@@ -42,3 +47,11 @@ exclude = '''(?x)(
 check_untyped_defs = true
 disallow_untyped_calls = true
 disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["hjson"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
