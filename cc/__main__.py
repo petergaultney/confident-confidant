@@ -143,9 +143,7 @@ def process_audio_file(
         logger.info(f"Removing original audio file because everything else succeeded: {audio_path}")
         audio_path.unlink()
 
-    logger.info(
-        f"Successfully processed {audio_path} -> {transcript_note_path.relative_to(vault_root)}"
-    )
+    logger.info(f"Successfully processed {audio_path} -> {transcript_note_path.relative_to(vault_root)}")
     return transcript_note_path
 
 

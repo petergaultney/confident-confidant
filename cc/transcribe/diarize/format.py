@@ -3,6 +3,7 @@
 import logging
 
 from thds.core.source import Source
+from thds.mops import pure
 
 from cc.transcribe.diarize.llm.transcribe_chunks import DiarizedChunkTranscript
 from cc.transcribe.workdir import workdir
@@ -10,6 +11,7 @@ from cc.transcribe.workdir import workdir
 logger = logging.getLogger(__name__)
 
 
+@pure.magic()
 def format_diarized_transcripts(transcripts: list[DiarizedChunkTranscript]) -> Source:
     """
     Format diarized transcripts into readable text without LLM.

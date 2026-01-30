@@ -3,7 +3,6 @@ import typing as ty
 from pathlib import Path
 
 from thds.core import source
-from thds.mops import pure
 
 from cc.config import DEFAULT_CONFIG
 from cc.transcribe.diarize.format import format_diarized_transcripts
@@ -13,12 +12,6 @@ from cc.transcribe.split import split_audio_on_silences
 from cc.transcribe.workdir import derive_workdir, workdir
 
 logger = logging.getLogger(__name__)
-
-pure.magic.pipeline_id("transcribe-diarize")
-
-_split_audio_on_silences = pure.magic()(split_audio_on_silences)
-_transcribe_chunks_diarized = pure.magic()(transcribe_chunks_diarized)
-_format_diarized_transcripts = pure.magic()(format_diarized_transcripts)
 
 
 class Output(ty.NamedTuple):
@@ -39,16 +32,14 @@ def transcribe_audio_diarized(
     workdir().mkdir(parents=True, exist_ok=True)
 
     logger.info("Splitting audio on silences...")
-    chunks = _split_audio_on_silences(
-        source.from_file(input_file), every=split_audio_approx_every_s
-    )
+    chunks = split_audio_on_silences(source.from_file(input_file), every=split_audio_approx_every_s)
     logger.info(f"Split into {len(chunks)} chunks")
 
     logger.info("Transcribing with diarization...")
-    transcripts = _transcribe_chunks_diarized(chunks, model=diarization_model)
+    transcripts = transcribe_chunks_diarized(chunks, model=diarization_model)
 
     logger.info("Formatting transcript...")  # (merge same-speaker segments, add paragraph breaks)
-    transcript = _format_diarized_transcripts(transcripts)
+    transcript = format_diarized_transcripts(transcripts)
 
     # Write speakers list for labeling
     speakers = extract_speakers(transcript=transcript.path().read_text(encoding="utf-8"))

@@ -138,7 +138,9 @@ def extract_speakers_(transcript_path: Path) -> None:
     transcript = transcript_path.read_text(encoding="utf-8")
     speakers = extract_speakers(transcript)
 
-    logger.info(f"Found {len(speakers)} distinct speakers:\n  " + "\n  ".join(speaker for speaker in speakers))
+    logger.info(
+        f"Found {len(speakers)} distinct speakers:\n  " + "\n  ".join(speaker for speaker in speakers)
+    )
 
 
 def apply_labels(transcript_path: Path, labels_path: Path) -> None:
@@ -152,7 +154,10 @@ def apply_labels(transcript_path: Path, labels_path: Path) -> None:
     transcript = transcript_path.read_text(encoding="utf-8")
     label_onto_name = _load_label_mappings(labels_path)
 
-    logger.info(f"Loaded {len(label_onto_name)} label mappings:\n  " + "\n  ".join(f"{label} -> {name}" for label, name in sorted(label_onto_name.items())))
+    logger.info(
+        f"Loaded {len(label_onto_name)} label mappings:\n  "
+        + "\n  ".join(f"{label} -> {name}" for label, name in sorted(label_onto_name.items()))
+    )
 
     # Replace labels
     result = _replace_labels(transcript, label_onto_name)

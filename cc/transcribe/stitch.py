@@ -1,6 +1,7 @@
 import logging
 
 from thds.core.source import Source
+from thds.mops import pure
 
 from cc.transcribe.llm.transcribe_chunks import ChunkTranscript
 from cc.transcribe.workdir import workdir
@@ -9,6 +10,7 @@ from cc.transcribe import llm
 logger = logging.getLogger(__name__)
 
 
+@pure.magic()
 def stitch_transcripts(chunk_transcripts: list[ChunkTranscript], model: str) -> Source:
     chunk_transcripts = sorted(chunk_transcripts, key=lambda t: t.index)
 
