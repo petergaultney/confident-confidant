@@ -2,7 +2,6 @@ import logging
 from pathlib import Path
 
 from thds.core import source
-from thds.mops import pure
 
 from cc.config import DEFAULT_CONFIG
 from cc.transcribe import llm
@@ -11,12 +10,6 @@ from cc.transcribe.stitch import stitch_transcripts
 from cc.transcribe.workdir import derive_workdir, workdir
 
 logger = logging.getLogger(__name__)
-
-pure.magic.pipeline_id("transcribe")
-
-_split_audio_on_silences = pure.magic()(split_audio_on_silences)
-_transcribe_chunks = pure.magic()(llm.transcribe_chunks)
-_stitch_transcripts = pure.magic()(stitch_transcripts)
 
 
 def transcribe_audio_file(
@@ -42,13 +35,11 @@ def transcribe_audio_file(
     workdir().mkdir(parents=True, exist_ok=True)
 
     # Run pipeline steps (decorator handles caching)
-    chunks = _split_audio_on_silences(
-        source.from_file(input_file), every=split_audio_approx_every_s
-    )
-    chunk_transcripts = _transcribe_chunks(
+    chunks = split_audio_on_silences(source.from_file(input_file), every=split_audio_approx_every_s)
+    chunk_transcripts = llm.transcribe_chunks(
         chunks, model=transcription_model, prompt=transcription_prompt
     )
-    final = _stitch_transcripts(chunk_transcripts, model=reformat_model)
+    final = stitch_transcripts(chunk_transcripts, model=reformat_model)
 
     logger.info(f"Done. Output in: {workdir()}")
     logger.info(f"  transcript.txt: {final.path()}")

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from openai import OpenAI, omit
 from thds.core.source import Source
+from thds.mops import pure
 
 from cc.env import activate_api_keys
 from cc.transcribe.split import Chunk
@@ -34,9 +35,7 @@ def _transcribe_one(chunk: Chunk, model: str, prompt: str, out_dir: Path) -> Chu
 
     client = OpenAI()
     with chunk.audio_src.path().open("rb") as f:
-        resp = client.audio.transcriptions.create(
-            model=model, prompt=prompt.strip() or omit, file=f
-        )
+        resp = client.audio.transcriptions.create(model=model, prompt=prompt.strip() or omit, file=f)
 
     transcript = ChunkTranscript(index=chunk.index, text=resp.text, audio_src=chunk.audio_src)
 
@@ -49,19 +48,16 @@ def _transcribe_one(chunk: Chunk, model: str, prompt: str, out_dir: Path) -> Chu
     return transcript
 
 
+@pure.magic()
 def transcribe_chunks(chunks: ty.Sequence[Chunk], model: str, prompt: str) -> list[ChunkTranscript]:
     out_dir = workdir() / "chunk-transcripts"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info(
-        f"Transcribing {len(chunks)} chunks, using model {model}, with prompt '{prompt}'..."
-    )
+    logger.info(f"Transcribing {len(chunks)} chunks, using model {model}, with prompt '{prompt}'...")
     successes: list[ChunkTranscript] = []
     failures: list[_TranscriptionError] = []
     with ThreadPoolExecutor(max_workers=2) as ex:
-        futures = {
-            ex.submit(_transcribe_one, chunk, model, prompt, out_dir): chunk for chunk in chunks
-        }
+        futures = {ex.submit(_transcribe_one, chunk, model, prompt, out_dir): chunk for chunk in chunks}
         for future in as_completed(futures):
             chunk = futures[future]
             try:

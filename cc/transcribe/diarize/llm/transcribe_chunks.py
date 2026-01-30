@@ -8,6 +8,7 @@ from pathlib import Path
 
 from openai import OpenAI
 from thds.core.source import Source
+from thds.mops import pure
 
 from cc.env import activate_api_keys
 from cc.transcribe.split import Chunk
@@ -94,6 +95,7 @@ class _TranscriptionError(Exception):
         self.exception = exception
 
 
+@pure.magic()
 def transcribe_chunks_diarized(chunks: list[Chunk], model: str) -> list[DiarizedChunkTranscript]:
     """Transcribe chunks with GPT-4o diarization model."""
     out_dir = workdir() / "diarized-transcripts"

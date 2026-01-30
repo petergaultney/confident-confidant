@@ -12,6 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from thds.core.source import Source
+from thds.mops import pure
 
 from cc.transcribe.split.choose_silence_cuts import Cut, choose_cuts
 from cc.transcribe.split.env import which_ffmpeg_or_raise
@@ -178,9 +179,9 @@ def _split_on_silence(audio_file: Source, cuts: list[Cut]) -> list[Chunk]:
     if skipped := len(chunks) - len(non_silent):
         logger.info(f"Skipped {skipped} silent chunk(s)")
 
-    assert (
-        non_silent
-    ), f"Apparently the volume never exceeded {_DEFAULT_SILENCE_THRESHOLD}dB for this audio file"
+    assert non_silent, (
+        f"Apparently the volume never exceeded {_DEFAULT_SILENCE_THRESHOLD}dB for this audio file"
+    )
     return non_silent
 
 
@@ -191,6 +192,7 @@ def _is_audio_file_chunk_sized(
     return audio_file_duration <= max_chunk_size
 
 
+@pure.magic()
 def split_audio_on_silences(
     input_file: Source, every: float = 1200.0, window: float = 90.0
 ) -> list[Chunk]:

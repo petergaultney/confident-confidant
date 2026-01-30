@@ -65,9 +65,7 @@ class ConfidentConfidantConfig:
     audio_dir: str = "./cc/audio"
     # dirs can be relative to the original audio file (starts with ./) or to the vault root (starts with :)
     notes_dir: str = "./cc/notes"
-    datetime_fmt: str = (
-        "%y-%m-%d_%H%M"  # very opinionated, sorry - I don't expect to live until 2100
-    )
+    datetime_fmt: str = "%y-%m-%d_%H%M"  # very opinionated, sorry - I don't expect to live until 2100
     skip_dir: bool = False
     # if True, skip any files in this directory, and in subdirectories that do not have more specific config.
 
