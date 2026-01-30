@@ -196,3 +196,7 @@ cython_debug/
 .python-version
 
 .vscode
+
+.out
+.mops
+.DS_Store

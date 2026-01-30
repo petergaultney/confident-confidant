@@ -1,3 +1,14 @@
+# 2.0.0
+
+- Support transcribing audio files larger than 25 MB by splitting on silence,
+  transcribing chunks in parallel, and stitching the results back together.
+- Add speaker diarization pipeline (`transcribe-diarize`) using GPT-4o, with a
+  labeling step (`transcribe-label`) for mapping chunk-local speaker IDs to names.
+- New standalone CLI entry points: `transcribe`, `transcribe-diarize`, `transcribe-label`.
+- New config options: `reformat_model`, `split_audio_approx_every_s`, `diarization_model`.
+- New dependency: `ffmpeg` (install via `brew install ffmpeg`).
+- Python version requirement bumped to 3.13+.
+
 # 1.0.0
 
 - Modularizes and librarifies `confident-confidant`

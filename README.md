@@ -22,7 +22,12 @@ Does not need to be pointed at your entire Vault - can run on any subdirectory w
 
 ## Setup
 
-You'll need `uv` [installed](https://docs.astral.sh/uv/getting-started/installation/).
+You'll need `uv` [installed](https://docs.astral.sh/uv/getting-started/installation/) and
+`ffmpeg` (required for splitting long audio files):
+
+```sh
+brew install ffmpeg
+```
 
 Install `coco` as an editable tool:
 
@@ -94,5 +99,5 @@ Obsidian](https://github.com/LostPaul/obsidian-folder-notes).
 - [ ] Potentially (configurably) allow embedding the resulting note _within_ the note
       where the audio file was linked. This would probably require some Markdown
       cleverness to respect headings.
-- [ ] Support audio recordings larger than 25 MB. This is a low priority feature for me
+- [x] Support audio recordings larger than 25 MB. This is a low priority feature for me
       and would likely require taking on new dependencies.

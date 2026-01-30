@@ -1,4 +1,5 @@
 import os
+from thds.core.lazy import lazy
 
 
 def _anthropic_api_key() -> str:
@@ -19,6 +20,7 @@ _API_KEYS = {
 }
 
 
+@lazy
 def activate_api_keys() -> None:
     """So you don't have to have all of them in case you only use one."""
     list(map(_set_api_key, _API_KEYS.keys()))

@@ -15,6 +15,7 @@ from cc.vault import (
     find_vault_root,
     replace_links_in_notes,
 )
+from cc.transcribe import transcribe_audio_file
 
 logger = logging.getLogger(__name__)
 
@@ -99,11 +100,16 @@ def process_audio_file(
     logger.info(f"Processing audio file: {audio_path}")
     original_audio_hash = hash_file(audio_path)
 
+    transcript_file = transcribe_audio_file(
+        audio_path,
+        transcription_model=tconfig.transcription_model,
+        transcription_prompt=tconfig.transcription_prompt,
+        reformat_model=tconfig.reformat_model,
+        split_audio_approx_every_s=tconfig.split_audio_approx_every_s,
+    )
     title, note = llm.summarize.summarize_transcript(
         tconfig.note_model,
-        llm.transcribe.transcribe_audio(  # TRANSCRIPTION HAPPENS HERE
-            audio_path, tconfig.transcription_model, tconfig.transcription_prompt
-        ),
+        transcript=transcript_file.read_text(),
         prompt=tconfig.note_prompt,
     )
 

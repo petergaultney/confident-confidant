@@ -4,6 +4,8 @@
 
 ```hjson
 transcription_model: gpt-4o-transcribe
+reformat_model: gpt-4o
+split_audio_approx_every_s: 1200
 note_model: anthropic/claude-sonnet-4-20250514
 audio_dir: ./cc/audio
 notes_dir: ./cc/notes
