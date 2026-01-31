@@ -40,7 +40,7 @@ def extract_audio(input_file: Source) -> Source:
         [
             *"ffmpeg -hide_banner -loglevel error -i".split(),
             str(input_file.path()),  # paths can have spaces in them
-            *"-vn -map 0:a:0 -c:a copy".split(),
+            *"-vn -map 0:a:0 -c:a aac".split(),
             str(output_audio_file),
         ],
         check=True,
