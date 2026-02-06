@@ -10,6 +10,7 @@ from cc.files import copy_file, create_unique_file_path, generate_new_filename, 
 from cc.output_note import create_transcript_note
 from cc.vault import (
     VaultIndex,
+    link_line_has_tag,
     build_vault_index,
     find_linking_notes,
     find_vault_root,
@@ -95,6 +96,13 @@ def process_audio_file(
     linking_notes = find_linking_notes(index, vault_root, audio_path)
     if not linking_notes:
         logger.info(f"No notes link to {audio_path}; we will leave this one untranscribed.")
+        return None
+
+    if any(
+        link_line_has_tag(index, in_md_file=note, target_file=audio_path, tag="#diarize")
+        for note in linking_notes
+    ):
+        logger.info(f"Skipping {audio_path} - tagged #diarize (use coco-meeting instead)")
         return None
 
     logger.info(f"Processing audio file: {audio_path}")

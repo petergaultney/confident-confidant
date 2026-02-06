@@ -33,6 +33,7 @@ coco = "cc.__main__:main"
 coco-summarize = "cc.__main__:main_summarize"
 transcribe = "cc.transcribe.__main__:cli"
 transcribe-diarize = "cc.transcribe.diarize.__main__:cli"
+coco-meeting = "cc.meeting:main"
 transcribe-label = "cc.transcribe.diarize.label:cli"
 
 [tool.mypy]
