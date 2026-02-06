@@ -6,9 +6,11 @@ from cc.vault import (
     VaultIndex,
     _find_links_to_file,
     _Link,
+    link_line_has_tag,
     _markdown_link_matches_target,
     _obsidian_link_matches_target,
     build_vault_index,
+    find_link_context,
 )
 
 
@@ -365,3 +367,115 @@ class Test_find_links_to_file:
                 text="My Audio Note",
             )
         ]
+
+
+def test_link_context_same_line(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text(" - meeting with Grant: ![[recording.m4a]]")
+    index = build_vault_index(tmp_path)
+
+    contexts = find_link_context(index, in_md_file=note, target_file=target)
+    assert len(contexts) == 1
+    assert contexts[0].context == "meeting with Grant"
+
+
+def test_link_context_previous_line(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text(" - meeting with Grant about policy stuff:\n![[recording.m4a]]")
+    index = build_vault_index(tmp_path)
+
+    contexts = find_link_context(index, in_md_file=note, target_file=target)
+    assert len(contexts) == 1
+    assert contexts[0].context == "meeting with Grant about policy stuff"
+
+
+def test_link_context_both_lines(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text(" - meeting with Grant:\nextra context ![[recording.m4a]]")
+    index = build_vault_index(tmp_path)
+
+    contexts = find_link_context(index, in_md_file=note, target_file=target)
+    assert len(contexts) == 1
+    assert "meeting with Grant" in contexts[0].context
+    assert "extra context" in contexts[0].context
+
+
+def test_link_context_strips_diarize_tag(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text(" - meeting with Grant: #diarize ![[recording.m4a]]")
+    index = build_vault_index(tmp_path)
+
+    contexts = find_link_context(index, in_md_file=note, target_file=target)
+    assert len(contexts) == 1
+    assert "#diarize" not in contexts[0].context
+    assert "meeting with Grant" in contexts[0].context
+
+
+def test_link_context_no_context(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text("![[recording.m4a]]")
+    index = build_vault_index(tmp_path)
+
+    contexts = find_link_context(index, in_md_file=note, target_file=target)
+    assert len(contexts) == 1
+    assert contexts[0].context == ""
+
+
+def test_link_context_no_links(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text("no links here")
+    index = build_vault_index(tmp_path)
+
+    assert find_link_context(index, in_md_file=note, target_file=target) == []
+
+
+def test_link_tag_on_link_line(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text(" - meeting: #diarize ![[recording.m4a]]")
+    index = build_vault_index(tmp_path)
+
+    assert link_line_has_tag(index, in_md_file=note, target_file=target, tag="#diarize")
+
+
+def test_link_tag_on_previous_line(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text(" - meeting: #diarize\n![[recording.m4a]]")
+    index = build_vault_index(tmp_path)
+
+    assert link_line_has_tag(index, in_md_file=note, target_file=target, tag="#diarize")
+
+
+def test_link_tag_absent(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text(" - meeting with Grant:\n![[recording.m4a]]")
+    index = build_vault_index(tmp_path)
+
+    assert not link_line_has_tag(index, in_md_file=note, target_file=target, tag="#diarize")
+
+
+def test_link_tag_far_away_not_detected(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text("#diarize\n\nsome other stuff\n![[recording.m4a]]")
+    index = build_vault_index(tmp_path)
+
+    assert not link_line_has_tag(index, in_md_file=note, target_file=target, tag="#diarize")

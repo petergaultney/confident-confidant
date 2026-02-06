@@ -143,7 +143,7 @@ def extract_speakers_(transcript_path: Path) -> None:
     )
 
 
-def apply_labels(transcript_path: Path, labels_path: Path) -> None:
+def apply_labels(transcript_path: Path, labels_path: Path) -> Path:
     """Apply label mappings and merge consecutive same-speaker blocks."""
     if not transcript_path.exists():
         raise FileNotFoundError(f"Transcript not found: {transcript_path}")
@@ -169,6 +169,7 @@ def apply_labels(transcript_path: Path, labels_path: Path) -> None:
     output_path = transcript_path.with_suffix(".labeled.txt")
     output_path.write_text(result, encoding="utf-8")
     logger.info(f"Wrote: {output_path}")
+    return output_path
 
 
 def cli() -> None:
