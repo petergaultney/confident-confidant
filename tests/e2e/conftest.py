@@ -17,7 +17,7 @@ from tests.e2e import generate_audio
 
 _E2E_DIR = Path(__file__).parent
 _MONOLOGUE_TXT = _E2E_DIR / "fixtures" / "wendell-berry-why-i-am-not-going-to-buy-a-computer.md"
-_DIALOGUE_TXT = _E2E_DIR / "fixtures" / "samuel-becket-waiting-for-godot-act-1.md"
+_DIALOGUE_TXT = _E2E_DIR / "fixtures" / "samuel-beckett-waiting-for-godot-act-1.md"
 
 # Cheapest available models for each role
 CHEAP_CONFIG = ConfidentConfidantConfig(

@@ -1,5 +1,6 @@
 """Replace CHUNK_N_X speaker labels with human-readable names."""
 
+import shutil
 import argparse
 import logging
 import re
@@ -139,11 +140,12 @@ def extract_speakers_(transcript_path: Path) -> None:
     speakers = extract_speakers(transcript)
 
     logger.info(
-        f"Found {len(speakers)} distinct speakers:\n  " + "\n  ".join(speaker for speaker in speakers)
+        f"Found {len(speakers)} distinct speakers:\n  "
+        + "\n  ".join(speaker for speaker in speakers)
     )
 
 
-def apply_labels(transcript_path: Path, labels_path: Path) -> None:
+def apply_labels(transcript_path: Path, labels_path: Path) -> Path:
     """Apply label mappings and merge consecutive same-speaker blocks."""
     if not transcript_path.exists():
         raise FileNotFoundError(f"Transcript not found: {transcript_path}")
@@ -169,6 +171,7 @@ def apply_labels(transcript_path: Path, labels_path: Path) -> None:
     output_path = transcript_path.with_suffix(".labeled.txt")
     output_path.write_text(result, encoding="utf-8")
     logger.info(f"Wrote: {output_path}")
+    return output_path
 
 
 def cli() -> None:
@@ -178,6 +181,7 @@ def cli() -> None:
     )
     parser.add_argument("transcript", help="Path to transcript.txt", type=Path)
     parser.add_argument("labels", nargs="?", help="Path to labels.toml", type=Path)
+    parser.add_argument("-o", "--out", type=Path, default=None)
     parser.add_argument(
         "--speakers",
         action="store_true",
@@ -189,8 +193,11 @@ def cli() -> None:
         extract_speakers_(args.transcript)
     else:
         if not args.labels:
-            parser.error("labels file is required unless --extract is specified")
-        apply_labels(transcript_path=args.transcript, labels_path=args.labels)
+            parser.error("labels file is required unless --speakers is specified")
+        output = apply_labels(transcript_path=args.transcript, labels_path=args.labels)
+        if args.out:
+            shutil.copy2(output, args.out)
+            print(f"copied labeled transcript to {args.out}")
 
 
 if __name__ == "__main__":

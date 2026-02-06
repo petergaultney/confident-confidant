@@ -48,7 +48,7 @@ def _transcribe_chunk_diarized(chunk: Chunk, model: str, out_dir: Path) -> Diari
 
     client = OpenAI()
 
-    with open(chunk.audio_src, "rb") as f:
+    with open(chunk.audio_src.path(), "rb") as f:
         # Using OpenAI client directly instead of litellm because of
         # https://github.com/BerriAI/litellm/issues/18125
         # litellm doesn't properly pass chunking_strategy which is required for diarization
