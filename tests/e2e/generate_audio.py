@@ -321,13 +321,15 @@ def cli() -> None:
         if args.preview:
             preview_monologue(args.script)
         else:
-            kwargs: dict[str, ty.Any] = {"silence": args.silence} if args.silence is not None else {}
+            kwargs: dict[str, ty.Any] = (
+                {"silence_sec": args.silence} if args.silence is not None else {}
+            )
             monologue(args.script, args.output, **kwargs)
     else:
         if args.preview:
             preview_dialogue(args.script)
         else:
-            kwargs = {"silence": args.silence} if args.silence is not None else {}
+            kwargs = {"silence_sec": args.silence} if args.silence is not None else {}
             dialogue(args.script, args.output, **kwargs)
 
 

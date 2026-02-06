@@ -152,7 +152,8 @@ def _split_on_silence(audio_file: Source, cuts: list[Cut]) -> list[Chunk]:
             [
                 *"ffmpeg -hide_banner -loglevel error -i".split(),
                 str(audio_file.path()),
-                *"-c copy {chunks_dir}/chunk_000.m4a".split(),
+                "-c copy",
+                f"{chunks_dir}/chunk_000.m4a",
             ],
             check=True,
         )

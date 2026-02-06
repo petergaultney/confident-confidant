@@ -189,7 +189,7 @@ def cli() -> None:
         extract_speakers_(args.transcript)
     else:
         if not args.labels:
-            parser.error("labels file is required unless --extract is specified")
+            parser.error("labels file is required unless --speakers is specified")
         apply_labels(transcript_path=args.transcript, labels_path=args.labels)
 
 

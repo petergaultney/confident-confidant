@@ -16,9 +16,7 @@ def cli() -> None:
         description="Transcribe audio with GPT-4o speaker diarization.",
     )
     parser.add_argument("input", help="Input audio/video file", type=Path)
-    parser.add_argument(
-        "-o", "--out", help="Where does the output go? (provide a directory)", type=Path
-    )
+    parser.add_argument("-o", "--out", help="Where does the output go? (provide a directory)", type=Path)
     args = parser.parse_args()
 
     config = read_config_from_directory_hierarchy(args.input)
