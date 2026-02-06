@@ -214,6 +214,72 @@ def _find_links_to_file(index: VaultIndex, *, in_md_file: Path, target_file: Pat
     ]
 
 
+@dataclass
+class LinkContext:
+    link: _Link
+    line_text: str  # full line containing the link
+    prev_line: str  # line immediately before the link (empty if first line)
+    context: str  # surrounding text with link, tags, and list markers stripped
+
+
+def _clean_context(raw: str) -> str:
+    return raw.replace("#diarize", "").strip().lstrip("- ").rstrip(":").strip()
+
+
+def find_link_context(
+    index: VaultIndex, *, in_md_file: Path, target_file: Path
+) -> list[LinkContext]:
+    """Find links to target_file and extract surrounding text as context.
+
+    Grabs both same-line text and the previous line (for the common pattern
+    where context sits on the line above an embed).
+    """
+    content = in_md_file.read_text(encoding="utf-8")
+    lines = content.splitlines()
+    results: list[LinkContext] = []
+
+    for match in _LINK_PATTERN.finditer(content):
+        link = _link_from_match_if_target(
+            index, match, src_file=in_md_file, expected_target=target_file
+        )
+        if not link:
+            continue
+
+        context_parts: list[str] = []
+        prev_line = ""
+        for i, line in enumerate(lines):
+            if link.full_match not in line:
+                continue
+
+            if i > 0:
+                prev_line = lines[i - 1]
+                prev_ctx = _clean_context(prev_line)
+                if prev_ctx and not _LINK_PATTERN.search(prev_line):
+                    context_parts.append(prev_ctx)
+
+            same_line = _clean_context(line.replace(link.full_match, ""))
+            if same_line:
+                context_parts.append(same_line)
+            break
+
+        results.append(LinkContext(
+            link=link, line_text=line, prev_line=prev_line,
+            context=" ".join(context_parts),
+        ))
+
+    return results
+
+
+def link_line_has_tag(
+    index: VaultIndex, *, in_md_file: Path, target_file: Path, tag: str
+) -> bool:
+    """Check if any link to target_file has the given tag on or near the same line."""
+    return any(
+        tag in ctx.line_text or tag in ctx.prev_line
+        for ctx in find_link_context(index, in_md_file=in_md_file, target_file=target_file)
+    )
+
+
 def find_linking_notes(index: VaultIndex, vault_root: Path, audio_path: Path) -> list[Path]:
     """Find all text notes that link to the given audio file."""
     logger.info(f"Looking for notes linking to: {audio_path.name}")
