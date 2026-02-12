@@ -1,17 +1,17 @@
 import logging
 import textwrap
 import typing as ty
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
 import hjson
 
-from cc.md import extract_code_block, extract_heading_content
+from cc.md import extract_code_block, extract_heading_content, extract_headings_by_prefix
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_NOTE_PROMPT = textwrap.dedent(
+DEFAULT_NOTE_PROMPT = textwrap.dedent(
     """
     2. A concise summary (2-3 sentences) - I am the speaker, so use first-person perspective
     3. A complete and organized markdown-native outline,
@@ -51,7 +51,8 @@ _DEFAULT_NOTE_PROMPT = textwrap.dedent(
 class ConfidentConfidantConfig:
     # for transcribing:
     transcription_model: str = "gpt-4o-transcribe"  # or "whisper-1", or "gpt-4o-mini-transcribe"
-    transcription_prompt: str = ""
+    transcription_context: str = ""
+    # names, terms, pronunciations — passed to both transcription API and summarizer
     reformat_model: str = "gpt-4o"
     # ^ for stitching together chunk-transcripts if the audio file is long
     split_audio_approx_every_s: int = 20 * 60  # 20 minutes
@@ -59,7 +60,8 @@ class ConfidentConfidantConfig:
 
     # for summarizing:
     note_model: str = "anthropic/claude-sonnet-4-20250514"
-    note_prompt: str = _DEFAULT_NOTE_PROMPT
+    note_prompts: dict[str, str] = field(default_factory=dict)
+    # keyed by prompt name ("default", "meeting", etc.)
 
     # for outputting:
     audio_dir: str = "./cc/audio"
@@ -70,7 +72,7 @@ class ConfidentConfidantConfig:
     # if True, skip any files in this directory, and in subdirectories that do not have more specific config.
 
 
-DEFAULT_CONFIG = ConfidentConfidantConfig()
+DEFAULT_CONFIG = ConfidentConfidantConfig(note_prompts={"default": DEFAULT_NOTE_PROMPT})
 
 
 def _parse_hjson(some_text: str) -> dict[str, ty.Any]:
@@ -81,61 +83,105 @@ def _parse_hjson(some_text: str) -> dict[str, ty.Any]:
         return hjson.loads("{" + some_text + "}")
 
 
-@lru_cache  # cache this so we don't have to re-read the directory hierarchy for every file.
-def read_config_from_directory_hierarchy(any_path: Path) -> ConfidentConfidantConfig:
-    """Return the first config found in the first file where the config is not identical to the default config.
+def _parse_config_md(config_md: str) -> ConfidentConfidantConfig:
+    cc_config_md = extract_heading_content(config_md, "Confident Confidant Config")
+    if not cc_config_md:
+        return ConfidentConfidantConfig()
 
-    'First' means we look 'upward' in the directory hierarchy for a config file, starting
-    from the given path.
-    """
-    current_dir = any_path if any_path.is_dir() else any_path.parent
+    config = ConfidentConfidantConfig()
 
-    if any_path.parent == any_path:
-        logger.info(f"Using default config for {current_dir}")
-        return DEFAULT_CONFIG  # reached the root of the filesystem, no config found
+    base_config_text = extract_heading_content(cc_config_md, "Base Config") or ""
+    if escaped_config := extract_code_block(base_config_text):
+        base_config_text = escaped_config
+    base_config_text = base_config_text.strip()
+    if base_config_text:
+        base_config = _parse_hjson(base_config_text)
+        # backwards compat
+        if "note_prompt" in base_config:
+            config.note_prompts["default"] = base_config.pop("note_prompt")
+        if "transcription_prompt" in base_config:
+            base_config["transcription_context"] = base_config.pop("transcription_prompt")
+        for key, value in base_config.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
 
-    def parse_config(config_md: str) -> ConfidentConfidantConfig:
-        cc_config_md = extract_heading_content(config_md, "Confident Confidant Config")
-        if not cc_config_md:
-            return DEFAULT_CONFIG
+    # support both old and new heading names
+    for heading in ("Transcription Context", "Transcription Prompt"):
+        if text := extract_heading_content(cc_config_md, heading):
+            config.transcription_context = text
+            break
 
-        config = ConfidentConfidantConfig()
+    for name, content in extract_headings_by_prefix(cc_config_md, "Note Prompt").items():
+        if escaped := extract_code_block(content):
+            content = escaped
+        config.note_prompts[name] = content.strip()
 
-        base_config_text = extract_heading_content(cc_config_md, "Base Config") or ""
-        if escaped_config := extract_code_block(base_config_text):
-            base_config_text = escaped_config
-        base_config_text = base_config_text.strip()
-        if base_config_text:
-            base_config = _parse_hjson(base_config_text)
-            for key, value in base_config.items():
-                if hasattr(config, key):
-                    setattr(config, key, value)
+    return config
 
-        if transcription_prompt := extract_heading_content(cc_config_md, "Transcription Prompt"):
-            config.transcription_prompt = transcription_prompt
 
-        if note_prompt := extract_heading_content(cc_config_md, "Note Prompt"):
-            if escaped_prompt := extract_code_block(note_prompt):
-                note_prompt = escaped_prompt
-            config.note_prompt = note_prompt.strip()
+_CONFIG_FILENAMES = (".cc-config.md", "cc-config.md")
 
-        return config
 
+def _find_config_in_dir(current_dir: Path) -> ConfidentConfidantConfig | None:
+    """Return the first non-empty config found in current_dir, or None."""
     config_files = (
-        current_dir / ".cc-config.md",
-        current_dir / "cc-config.md",
+        *(current_dir / name for name in _CONFIG_FILENAMES),
         current_dir / (current_dir.name + ".md"),
-        # look inside a 'folder note', if any, under the heading `# Transcript Prompt`
     )
-
     for config_file in config_files:
         if config_file.is_file():
-            config = parse_config(config_file.read_text())
-            if config and config != DEFAULT_CONFIG:
-                logger.info(f"Using discovered config for {current_dir}, from {config_file}")
+            config = _parse_config_md(config_file.read_text())
+            if config != ConfidentConfidantConfig():
                 return config
 
-    return read_config_from_directory_hierarchy(current_dir.parent)  # recurse up the directory tree
+    return None
+
+
+@lru_cache
+def collect_configs_root_to_file(any_path: Path) -> tuple[ConfidentConfidantConfig, ...]:
+    """Collect all non-empty configs from filesystem root down to any_path's directory."""
+    configs: list[ConfidentConfidantConfig] = []
+    current = any_path if any_path.is_dir() else any_path.parent
+    while current != current.parent:
+        config = _find_config_in_dir(current)
+        if config is not None:
+            configs.append(config)
+        current = current.parent
+    configs.reverse()  # root-to-file order
+    return tuple(configs)
+
+
+@lru_cache
+def read_config_from_directory_hierarchy(any_path: Path) -> ConfidentConfidantConfig:
+    """Return the nearest non-default config for scalar fields.
+
+    Walks upward from any_path; returns the config closest to the file.
+    For prompt resolution, use resolve_prompt with collect_configs_root_to_file instead.
+    """
+    configs = collect_configs_root_to_file(any_path)
+    return configs[-1] if configs else DEFAULT_CONFIG
+
+
+def resolve_prompt(
+    configs: tuple[ConfidentConfidantConfig, ...] | list[ConfidentConfidantConfig],
+    prompt_names: list[str],
+) -> str:
+    """Resolve the final prompt from a hierarchy of configs and selected prompt names.
+
+    For each name in prompt_names (in tag order), collect that name's prompt from
+    every config (root-to-file), concatenating with '\\n\\n'.
+    If prompt_names is empty, use ["default"].
+    """
+    if not prompt_names:
+        prompt_names = ["default"]
+
+    parts: list[str] = []
+    for name in prompt_names:
+        for config in configs:
+            if name in config.note_prompts:
+                parts.append(config.note_prompts[name])
+
+    return "\n\n".join(parts) if parts else DEFAULT_NOTE_PROMPT
 
 
 def interpret_dir_config(vault_root: Path, audio_path: Path, config_str: str) -> Path:

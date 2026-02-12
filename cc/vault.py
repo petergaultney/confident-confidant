@@ -222,8 +222,12 @@ class LinkContext:
     context: str  # surrounding text with link, tags, and list markers stripped
 
 
+_TAG_RE = re.compile(r"#\w+")
+META_TAGS = frozenset({"diarize"})
+
+
 def _clean_context(raw: str) -> str:
-    return raw.replace("#diarize", "").strip().lstrip("- ").rstrip(":").strip()
+    return _TAG_RE.sub("", raw).strip().lstrip("- ").rstrip(":").strip()
 
 
 def find_link_context(
@@ -278,6 +282,83 @@ def link_line_has_tag(
         tag in ctx.line_text or tag in ctx.prev_line
         for ctx in find_link_context(index, in_md_file=in_md_file, target_file=target_file)
     )
+
+
+def extract_prompt_tags(
+    index: VaultIndex, *, in_md_file: Path, target_file: Path
+) -> list[str]:
+    """Extract non-meta tags from link lines for target_file, preserving order."""
+    tags: list[str] = []
+    seen: set[str] = set()
+    for ctx in find_link_context(index, in_md_file=in_md_file, target_file=target_file):
+        for text in (ctx.prev_line, ctx.line_text):
+            for match in _TAG_RE.finditer(text):
+                tag_name = match.group(0)[1:]  # strip leading #
+                if tag_name not in META_TAGS and tag_name not in seen:
+                    tags.append(tag_name)
+                    seen.add(tag_name)
+    return tags
+
+
+_HEADING_RE = re.compile(r"^(#+)\s+")
+
+
+def find_section_context(
+    index: VaultIndex, *, in_md_file: Path, target_file: Path
+) -> list[str]:
+    """Extract the section text surrounding each link to target_file.
+
+    For each link, walks backward to find the nearest heading, then grabs
+    everything from that heading through the next same-or-higher-level heading
+    (or EOF). The link line itself is stripped from the result.
+    """
+    content = in_md_file.read_text(encoding="utf-8")
+    lines = content.splitlines()
+
+    # find which line numbers contain links to target_file
+    link_lines: list[tuple[int, _Link]] = []
+    for match in _LINK_PATTERN.finditer(content):
+        link = _link_from_match_if_target(
+            index, match, src_file=in_md_file, expected_target=target_file
+        )
+        if not link:
+            continue
+
+        for i, line in enumerate(lines):
+            if link.full_match in line:
+                link_lines.append((i, link))
+                break
+
+    sections: list[str] = []
+    for link_line_idx, link in link_lines:
+        # walk backward to find nearest heading
+        heading_level = 0
+        section_start = 0
+        for i in range(link_line_idx - 1, -1, -1):
+            m = _HEADING_RE.match(lines[i])
+            if m:
+                heading_level = len(m.group(1))
+                section_start = i
+                break
+
+        # walk forward to find end of section
+        section_end = len(lines)
+        if heading_level:
+            for i in range(section_start + 1, len(lines)):
+                m = _HEADING_RE.match(lines[i])
+                if m and len(m.group(1)) <= heading_level:
+                    section_end = i
+                    break
+
+        section_lines = [
+            line for i, line in enumerate(lines[section_start:section_end], section_start)
+            if i != link_line_idx
+        ]
+        text = "\n".join(section_lines).strip()
+        if text:
+            sections.append(text)
+
+    return sections
 
 
 def find_linking_notes(index: VaultIndex, vault_root: Path, audio_path: Path) -> list[Path]:

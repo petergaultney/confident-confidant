@@ -5,7 +5,7 @@ import typing as ty
 
 from litellm import completion
 
-from cc.config import DEFAULT_CONFIG
+from cc.config import DEFAULT_NOTE_PROMPT
 from cc.env import activate_api_keys
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ def summarize_transcript(
     ll_model: str,
     transcript: str,
     prompt: str,
+    context: str = "",
 ) -> SummaryNote:
     """Get title and summary note from LLM; the summary note will be formatted as returned by the LLM.
 
@@ -36,11 +37,14 @@ def summarize_transcript(
     The function also tacks on the raw transcript if your resulting note does not include
     some whitespace-compressed version of the transcript.
 
+    context is prepended as background info (e.g. transcription prompt with names/terms).
     """
     logger.info(f"Getting note and title from {ll_model}")
 
+    context_section = f"Background context:\n{context}\n\n" if context.strip() else ""
     prompt = (
-        textwrap.dedent(
+        context_section
+        + textwrap.dedent(
             """
         Please analyze the raw transcript at the end and provide:
 
@@ -51,7 +55,7 @@ def summarize_transcript(
            be part of a filename.
         """
         )
-        + (prompt or DEFAULT_CONFIG.note_prompt)
+        + (prompt or DEFAULT_NOTE_PROMPT)
         + (
             "\n\n" + "Remember - regardless of the rest of the format of your response,"
             " the very first line must be a 3-7 word title on a line by itself."

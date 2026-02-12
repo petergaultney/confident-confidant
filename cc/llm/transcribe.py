@@ -9,11 +9,11 @@ from cc.env import activate_api_keys
 logger = logging.getLogger(__name__)
 
 
-def transcribe_audio(audio_path: Path, transcription_model: str, transcription_prompt: str) -> str:
+def transcribe_audio(audio_path: Path, transcription_model: str, transcription_context: str) -> str:
     """Transcribe audio file using OpenAI Whisper or newer models."""
     transcription_model = transcription_model or DEFAULT_CONFIG.transcription_model
     logger.info(
-        f"Transcribing audio: {audio_path} with {transcription_model}, using prompt: {transcription_prompt}"
+        f"Transcribing audio: {audio_path} with {transcription_model}, using prompt: {transcription_context}"
     )
     activate_api_keys()
     client = openai.OpenAI()
@@ -22,7 +22,7 @@ def transcribe_audio(audio_path: Path, transcription_model: str, transcription_p
         transcript = client.audio.transcriptions.create(
             model=transcription_model,
             file=audio_file,
-            prompt=transcription_prompt,
+            prompt=transcription_context,
         )
 
     return transcript.text

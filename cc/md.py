@@ -55,6 +55,63 @@ def extract_heading_content(markdown_text: str, heading_name: str) -> None | str
     return "\n".join(content_lines).rstrip() if found_heading_level else None
 
 
+def extract_headings_by_prefix(markdown_text: str, heading_prefix: str) -> dict[str, str]:
+    """Find all headings starting with heading_prefix and return {suffix: content}.
+
+    A bare heading (exact match to prefix) maps to "default".
+    A heading like "Note Prompt: meeting" with prefix "Note Prompt" maps to "meeting".
+    Ignores headings inside fenced code blocks.
+    """
+    results: dict[str, str] = {}
+    lines = markdown_text.split("\n")
+    in_code_block = False
+    current_key: str | None = None
+    current_level = 0
+    content_lines: list[str] = []
+
+    def _flush() -> None:
+        if current_key is not None:
+            results[current_key] = "\n".join(content_lines).rstrip()
+
+    for line in lines:
+        if line.strip().startswith("```"):
+            in_code_block = not in_code_block
+            if current_key is not None:
+                content_lines.append(line)
+            continue
+
+        if in_code_block:
+            if current_key is not None:
+                content_lines.append(line)
+            continue
+
+        match = re.match(r"^(#+)\s+(.*)", line)
+        if match:
+            level = len(match.group(1))
+            name = match.group(2).strip()
+
+            # end current section if same or higher level heading
+            if current_key is not None and level <= current_level:
+                _flush()
+                current_key = None
+                content_lines = []
+
+            if current_key is None and (name == heading_prefix or name.startswith(heading_prefix + ":")):
+                current_level = level
+                if name == heading_prefix:
+                    current_key = "default"
+                else:
+                    current_key = name[len(heading_prefix) + 1:].strip()
+                content_lines = []
+                continue
+
+        if current_key is not None:
+            content_lines.append(line)
+
+    _flush()
+    return results
+
+
 def extract_code_block(text: str) -> None | str:
     """
     Extract the first code block from the given text.

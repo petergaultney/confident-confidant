@@ -6,6 +6,8 @@ from cc.vault import (
     VaultIndex,
     _find_links_to_file,
     _Link,
+    _clean_context,
+    extract_prompt_tags,
     link_line_has_tag,
     _markdown_link_matches_target,
     _obsidian_link_matches_target,
@@ -469,6 +471,67 @@ def test_link_tag_absent(tmp_path: Path) -> None:
     index = build_vault_index(tmp_path)
 
     assert not link_line_has_tag(index, in_md_file=note, target_file=target, tag="#diarize")
+
+
+# extract_prompt_tags tests
+
+
+def test_extract_prompt_tags_single_tag(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text("![[recording.m4a]] #meeting")
+    index = build_vault_index(tmp_path)
+
+    assert extract_prompt_tags(index, in_md_file=note, target_file=target) == ["meeting"]
+
+
+def test_extract_prompt_tags_multiple_tags(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text("![[recording.m4a]] #meeting #followup")
+    index = build_vault_index(tmp_path)
+
+    assert extract_prompt_tags(index, in_md_file=note, target_file=target) == ["meeting", "followup"]
+
+
+def test_extract_prompt_tags_ignores_meta_diarize(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text("![[recording.m4a]] #diarize #meeting")
+    index = build_vault_index(tmp_path)
+
+    assert extract_prompt_tags(index, in_md_file=note, target_file=target) == ["meeting"]
+
+
+def test_extract_prompt_tags_no_tags(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text("![[recording.m4a]]")
+    index = build_vault_index(tmp_path)
+
+    assert extract_prompt_tags(index, in_md_file=note, target_file=target) == []
+
+
+def test_extract_prompt_tags_from_prev_line(tmp_path: Path) -> None:
+    target = tmp_path / "recording.m4a"
+    note = tmp_path / "daily.md"
+    target.touch()
+    note.write_text("meeting with Grant #meeting\n![[recording.m4a]]")
+    index = build_vault_index(tmp_path)
+
+    assert extract_prompt_tags(index, in_md_file=note, target_file=target) == ["meeting"]
+
+
+def test_clean_context_strips_all_tags() -> None:
+    assert _clean_context("meeting with Grant #meeting #followup") == "meeting with Grant"
+
+
+def test_clean_context_strips_diarize_tag() -> None:
+    assert _clean_context("something #diarize") == "something"
 
 
 def test_link_tag_far_away_not_detected(tmp_path: Path) -> None:

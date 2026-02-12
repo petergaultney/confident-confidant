@@ -1,3 +1,18 @@
+# 3.0.0
+
+- Named prompts with tag-based selection: define `## Note Prompt: meeting` (or any name)
+  in config, then select it with `#meeting` on the link line in your note.
+- `coco-meeting`: two-phase vault-aware diarized meeting transcription. Phase 1 transcribes
+  and writes `speakers.toml`; phase 2 applies speaker labels and summarizes.
+- Hierarchical prompt resolution: named prompts are concatenated root-to-file, so vault-wide
+  context composes with directory-specific instructions.
+- `transcription_context` (renamed from `transcription_prompt`; old name still accepted):
+  passed to both the transcription API and the summarizer as background context.
+- Meeting notes now extract full section context from the heading above the audio link,
+  giving the summarizer richer context about the meeting.
+- `#diarize` tag on link lines tells batch `coco` to skip the file.
+- Fix: `speakers.toml` is no longer overwritten on re-runs if it already exists.
+
 # 2.0.0
 
 - Support transcribing audio files larger than 25 MB by splitting on silence,

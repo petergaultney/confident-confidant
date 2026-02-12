@@ -58,6 +58,30 @@ mutate any existing notes.
 Run in an infinite loop ('server mode') with `--loop`. The sleep is hardcoded to 10
 seconds because I am lazy.
 
+### `coco-meeting` - Process diarized meeting recordings
+
+```sh
+coco-meeting <audio-file>
+```
+
+Two-phase workflow for multi-speaker recordings:
+
+1. **Phase 1**: Transcribes and diarizes the audio, writing a `speakers.toml` with
+   placeholder labels (`CHUNK_0_A`, `CHUNK_1_B`, etc.). Prints the file paths and exits.
+2. **Edit `speakers.toml`** to map labels to real names:
+   ```toml
+   Peter = ["CHUNK_0_B", "CHUNK_1_A"]
+   Grant = ["CHUNK_0_A", "CHUNK_1_B"]
+   ```
+3. **Phase 2**: Re-run the same command. It detects that `speakers.toml` has mappings,
+   applies them, and produces a labeled summary note.
+
+Re-running phase 1 is free (transcription results are `mops`-cached). Use `--no-mutate` to
+skip moving files and modifying vault notes.
+
+Mark recordings for `coco-meeting` by adding `#diarize` to the link line in your daily
+note — batch `coco` will skip these files so they don't get processed as solo voice memos.
+
 ### `coco-summarize` - Summarize an existing transcript
 
 ```sh
@@ -73,8 +97,9 @@ Reads its config from the Markdown 'vault' itself. An example config markdown th
 the default config would look like [the file linked here](cc-config.md).
 
 For any given audio file discovered by `coco`, will look recursively 'upward' to find
-config. The first found file that contains any config will override the default config,
-and the tool stops recursing upward for further config.
+config. For scalar fields (`note_model`, `audio_dir`, etc.), the nearest config to the
+file wins. For named prompts, see [hierarchical prompt resolution](#hierarchical-prompt-resolution)
+below.
 
 Config will be looked for in files with these names as we recurse upward:
 
@@ -85,6 +110,49 @@ Config will be looked for in files with these names as we recurse upward:
 The last follows the convention of the ['Folder Notes' plugin for
 Obsidian](https://github.com/LostPaul/obsidian-folder-notes).
 
+#### Named prompts and tags
+
+The `## Note Prompt` heading defines the default summarization prompt. You can also define
+**named prompts** by appending a colon and a name:
+
+```markdown
+## Note Prompt: meeting
+
+Summarize this multi-speaker meeting. Identify action items and decisions.
+
+## Note Prompt: standup
+
+Brief bullet points of what each person said.
+```
+
+Select a prompt by adding **tags** to the link or embed line in your Markdown note:
+
+```markdown
+![[Recording-20260212.webm]] #diarize #meeting
+```
+
+- `#diarize` is a **meta tag** — it tells batch `coco` to skip the file (use `coco-meeting`
+  instead). It does not select a prompt.
+- All other tags (e.g. `#meeting`, `#standup`) are **prompt selectors**.
+- **No tags** → the `default` prompt is used. **Specific tags present** → only those named
+  prompts are used (not the default).
+- Tags can appear on the same line as the link or on the line immediately above it.
+
+#### Hierarchical prompt resolution
+
+When multiple config files exist in the directory hierarchy (e.g., vault root and a
+subdirectory), prompts are **concatenated root-to-file** for each tag. This lets you put
+shared context like "I am Peter, a software engineer" in a root config while adding
+structure-specific instructions in leaf configs.
+
+Scalar config fields (`note_model`, `audio_dir`, etc.) still use nearest-to-file-wins.
+
+#### Transcription context
+
+The `## Transcription Context` heading (or legacy `## Transcription Prompt`) provides names,
+terms, and pronunciations. This text is passed to both the transcription API (as a prompt
+hint) and to the summarizer (as background context).
+
 # Future work
 
 - [x] Support standard Markdown style links in addition to the Obsidian piped links
@@ -93,9 +161,8 @@ Obsidian](https://github.com/LostPaul/obsidian-folder-notes).
 - [ ] Auto-configure default LLM based on discovered API key(s)
 - [ ] Provide an outline/summary refinement mode, where an already-transcribed recording
       and its existing note can be iterated on with refined LLM prompts?
-- [ ] Pick up partial configs recursively? E.g., allow defining the desired model and
-      directory config at the root of a vault, while still having specific prompts per
-      directory.
+- [x] Pick up partial configs recursively — hierarchical prompt resolution now concatenates
+      named prompts from root-to-file, while scalar fields use nearest-to-file-wins.
 - [ ] Potentially (configurably) allow embedding the resulting note _within_ the note
       where the audio file was linked. This would probably require some Markdown
       cleverness to respect headings.
