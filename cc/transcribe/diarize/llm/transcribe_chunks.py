@@ -58,6 +58,8 @@ def _transcribe_chunk_diarized(chunk: Chunk, model: str, out_dir: Path) -> Diari
             response_format="diarized_json",
             chunking_strategy="auto",  # Required for audio > 30s
         )
+        # gpt-4o-transcribe-diarize does not support prompts
+        # https://developers.openai.com/api/docs/guides/speech-to-text/#prompting
 
     # Parse response - diarized_json returns segments with speaker labels
     segments: list[DiarizedSegment] = []
