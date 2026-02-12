@@ -41,11 +41,12 @@ def transcribe_audio_diarized(
     logger.info("Formatting transcript...")  # (merge same-speaker segments, add paragraph breaks)
     transcript = format_diarized_transcripts(transcripts)
 
-    # Write speakers list for labeling
-    speakers = extract_speakers(transcript=transcript.path().read_text(encoding="utf-8"))
+    # Write speakers list for labeling (don't clobber existing edits)
     speakers_toml = workdir() / "speakers.toml"
-    speakers_toml.write_text("\n".join(f"# {s}" for s in speakers) + "\n", encoding="utf-8")
-    logger.info(f"Wrote: {speakers_toml} ({len(speakers)} speakers)")
+    if not speakers_toml.exists():
+        speakers = extract_speakers(transcript=transcript.path().read_text(encoding="utf-8"))
+        speakers_toml.write_text("\n".join(f"# {s}" for s in speakers) + "\n", encoding="utf-8")
+        logger.info(f"Wrote: {speakers_toml} ({len(speakers)} speakers)")
 
     logger.info(f"Done. Output: {transcript}")
     return Output(transcript.path(), speakers_toml)
