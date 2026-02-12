@@ -5,15 +5,21 @@ from functools import partial
 from pathlib import Path
 
 from cc import llm
-from cc.config import interpret_dir_config, read_config_from_directory_hierarchy
+from cc.config import (
+    collect_configs_root_to_file,
+    interpret_dir_config,
+    read_config_from_directory_hierarchy,
+    resolve_prompt,
+)
 from cc.files import copy_file, create_unique_file_path, generate_new_filename, hash_file
 from cc.output_note import create_transcript_note
 from cc.vault import (
     VaultIndex,
-    link_line_has_tag,
     build_vault_index,
+    extract_prompt_tags,
     find_linking_notes,
     find_vault_root,
+    link_line_has_tag,
     replace_links_in_notes,
 )
 from cc.transcribe import transcribe_audio_file
@@ -50,13 +56,15 @@ def summarize_transcript(transcript_path: Path, output_path: Path | None = None)
 
     # Load config from directory hierarchy
     tconfig = read_config_from_directory_hierarchy(transcript_path)
+    prompt = resolve_prompt(collect_configs_root_to_file(transcript_path), [])
 
     # Perform the summarization
     logger.info(f"Generating summary using model: {tconfig.note_model}")
     title, note_content = llm.summarize.summarize_transcript(
         ll_model=tconfig.note_model,
         transcript=transcript_content,
-        prompt=tconfig.note_prompt,
+        prompt=prompt,
+        context=tconfig.transcription_context,
     )
 
     # Determine output path
@@ -105,20 +113,31 @@ def process_audio_file(
         logger.info(f"Skipping {audio_path} - tagged #diarize (use coco-meeting instead)")
         return None
 
+    # extract prompt tags from link lines and resolve hierarchical prompt
+    prompt_tags: list[str] = []
+    seen: set[str] = set()
+    for note in linking_notes:
+        for tag in extract_prompt_tags(index, in_md_file=note, target_file=audio_path):
+            if tag not in seen:
+                prompt_tags.append(tag)
+                seen.add(tag)
+    prompt = resolve_prompt(collect_configs_root_to_file(audio_path), prompt_tags)
+
     logger.info(f"Processing audio file: {audio_path}")
     original_audio_hash = hash_file(audio_path)
 
     transcript_file = transcribe_audio_file(
         audio_path,
         transcription_model=tconfig.transcription_model,
-        transcription_prompt=tconfig.transcription_prompt,
+        transcription_context=tconfig.transcription_context,
         reformat_model=tconfig.reformat_model,
         split_audio_approx_every_s=tconfig.split_audio_approx_every_s,
     )
     title, note = llm.summarize.summarize_transcript(
         tconfig.note_model,
         transcript=transcript_file.read_text(),
-        prompt=tconfig.note_prompt,
+        prompt=prompt,
+        context=tconfig.transcription_context,
     )
 
     filename_base = generate_new_filename(tconfig.datetime_fmt, audio_path, title)

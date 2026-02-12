@@ -18,7 +18,7 @@ def test_transcribe_long_audio(long_audio: Path):
     transcript_path = transcribe_audio_file(
         long_audio,
         transcription_model=CHEAP_CONFIG.transcription_model,
-        transcription_prompt=CHEAP_CONFIG.transcription_prompt,
+        transcription_context=CHEAP_CONFIG.transcription_context,
         reformat_model=CHEAP_CONFIG.reformat_model,
         split_audio_approx_every_s=120,  # split every 2 min so we actually test multi-chunk
     )
@@ -33,7 +33,7 @@ def test_transcribe_short_audio(short_audio: Path):
     transcript_path = transcribe_audio_file(
         short_audio,
         transcription_model=CHEAP_CONFIG.transcription_model,
-        transcription_prompt=CHEAP_CONFIG.transcription_prompt,
+        transcription_context=CHEAP_CONFIG.transcription_context,
         reformat_model=CHEAP_CONFIG.reformat_model,
     )
 

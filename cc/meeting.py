@@ -7,8 +7,10 @@ from pathlib import Path
 from cc import llm
 from cc.config import (
     ConfidentConfidantConfig,
+    collect_configs_root_to_file,
     interpret_dir_config,
     read_config_from_directory_hierarchy,
+    resolve_prompt,
 )
 from cc.files import copy_file, create_unique_file_path, generate_new_filename, hash_file
 from cc.output_note import create_transcript_note
@@ -17,8 +19,9 @@ from cc.transcribe.diarize.label import apply_labels
 from cc.vault import (
     VaultIndex,
     build_vault_index,
-    find_link_context,
+    extract_prompt_tags,
     find_linking_notes,
+    find_section_context,
     find_vault_root,
     replace_links_in_notes,
 )
@@ -41,15 +44,13 @@ def _extract_meeting_context(
     index: VaultIndex, vault_root: Path, audio_path: Path
 ) -> str:
     contexts: list[str] = []
-    for note_path in vault_root.rglob("*.md"):
+    for note_path in find_linking_notes(index, vault_root, audio_path):
         try:
-            for lc in find_link_context(index, in_md_file=note_path, target_file=audio_path):
-                if lc.context:
-                    contexts.append(lc.context)
+            contexts.extend(find_section_context(index, in_md_file=note_path, target_file=audio_path))
         except Exception as e:
             logger.warning(f"Could not read {note_path}: {e}")
 
-    return "; ".join(contexts)
+    return "\n\n".join(contexts)
 
 
 def _enrich_prompt(base_prompt: str, meeting_context: str) -> str:
@@ -84,6 +85,7 @@ def _phase2_label_and_summarize(
     index: VaultIndex,
     vault_root: Path,
     config: ConfidentConfidantConfig,
+    prompt: str,
     meeting_context: str,
     dry_run: bool,
 ) -> Path:
@@ -92,7 +94,8 @@ def _phase2_label_and_summarize(
     title, note = llm.summarize.summarize_transcript(
         config.note_model,
         transcript=labeled_transcript.read_text(encoding="utf-8"),
-        prompt=_enrich_prompt(config.note_prompt, meeting_context),
+        prompt=_enrich_prompt(prompt, meeting_context),
+        context=config.transcription_context,
     )
 
     original_audio_hash = hash_file(audio_path)
@@ -148,6 +151,16 @@ def process_meeting(audio_path: Path, dry_run: bool) -> Path | None:
     index = build_vault_index(vault_root)
     config = read_config_from_directory_hierarchy(audio_path)
 
+    # extract prompt tags from linking notes
+    prompt_tags: list[str] = []
+    seen: set[str] = set()
+    for note_path in find_linking_notes(index, vault_root, audio_path):
+        for tag in extract_prompt_tags(index, in_md_file=note_path, target_file=audio_path):
+            if tag not in seen:
+                prompt_tags.append(tag)
+                seen.add(tag)
+    prompt = resolve_prompt(collect_configs_root_to_file(audio_path), prompt_tags)
+
     meeting_context = _extract_meeting_context(index, vault_root, audio_path)
     if meeting_context:
         logger.info(f"Extracted meeting context: {meeting_context}")
@@ -173,7 +186,7 @@ def process_meeting(audio_path: Path, dry_run: bool) -> Path | None:
     logger.info("speakers.toml has mappings - proceeding to phase 2")
     return _phase2_label_and_summarize(
         transcript, speakers_toml, audio_path,
-        index, vault_root, config, meeting_context, dry_run,
+        index, vault_root, config, prompt, meeting_context, dry_run,
     )
 
 

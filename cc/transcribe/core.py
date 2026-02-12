@@ -16,7 +16,7 @@ def transcribe_audio_file(
     input_file: Path,
     *,
     transcription_model: str = DEFAULT_CONFIG.transcription_model,
-    transcription_prompt: str = DEFAULT_CONFIG.transcription_prompt,
+    transcription_context: str = DEFAULT_CONFIG.transcription_context,
     reformat_model: str = DEFAULT_CONFIG.reformat_model,
     split_audio_approx_every_s: float = DEFAULT_CONFIG.split_audio_approx_every_s,
 ) -> Path:
@@ -37,7 +37,7 @@ def transcribe_audio_file(
     # Run pipeline steps (decorator handles caching)
     chunks = split_audio_on_silences(source.from_file(input_file), every=split_audio_approx_every_s)
     chunk_transcripts = llm.transcribe_chunks(
-        chunks, model=transcription_model, prompt=transcription_prompt
+        chunks, model=transcription_model, prompt=transcription_context
     )
     final = stitch_transcripts(chunk_transcripts, model=reformat_model)
 

@@ -20,7 +20,7 @@ def cli() -> None:
     output = transcribe_audio_file(
         input_file=args.input,
         transcription_model=config.transcription_model,
-        transcription_prompt=config.transcription_prompt,
+        transcription_context=config.transcription_context,
         reformat_model=config.reformat_model,
         split_audio_approx_every_s=config.split_audio_approx_every_s,
     )

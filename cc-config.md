@@ -12,7 +12,7 @@ notes_dir: ./cc/notes
 datetime_fmt: %y-%m-%d_%H%M
 ```
 
-## Transcription Prompt
+## Transcription Context
 
 Audio notes discovered here are related to my work as a software developer.
 
@@ -53,4 +53,33 @@ Format your response as:
 # Transcript
 
 {4. full_readable_transcript}
+```
+
+## Note Prompt: meeting
+
+```
+This is a multi-speaker meeting transcript with speaker labels.
+Please provide:
+
+1. A list of attendees and their roles (if discernible)
+2. Key decisions made
+3. Action items, attributed to specific people where possible
+4. A structured summary organized by topic
+
+Format your response as:
+# Attendees
+
+{attendees}
+
+# Decisions
+
+{decisions}
+
+# Action Items
+
+{action_items}
+
+# Summary
+
+{topic_summaries}
 ```
