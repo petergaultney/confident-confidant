@@ -59,7 +59,7 @@ class ConfidentConfidantConfig:
     diarization_model: str = "gpt-4o-transcribe-diarize"
 
     # for summarizing:
-    note_model: str = "anthropic/claude-sonnet-4-20250514"
+    note_model: str = "gpt-5.2"
     note_prompts: dict[str, str] = field(default_factory=dict)
     # keyed by prompt name ("default", "meeting", etc.)
 
