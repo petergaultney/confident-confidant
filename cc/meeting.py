@@ -21,6 +21,7 @@ from cc.transcribe.diarize.identify import (
     identify_speakers_interactive,
     prompt_for_names,
 )
+from cc.transcribe.diarize.tui import identify_speakers_tui
 from cc.transcribe.diarize.label import apply_labels
 from cc.vault import (
     VaultIndex,
@@ -166,6 +167,7 @@ def _phase2_interactive(
     prompt: str,
     meeting_context: str,
     speaker_names: list[str] | None,
+    use_tui: bool = True,
 ) -> SummaryNote:
     logger.info("Phase 2 interactive: transcript=%s", transcript)
     raw = transcript.read_text(encoding="utf-8")
@@ -177,7 +179,10 @@ def _phase2_interactive(
     if not names:
         raise SystemExit("No speaker names provided.")
 
-    utt_ids, unknowns = identify_speakers_interactive(raw, names)
+    if use_tui:
+        utt_ids, unknowns = identify_speakers_tui(raw, names)
+    else:
+        utt_ids, unknowns = identify_speakers_interactive(raw, names)
     if not utt_ids and not unknowns:
         raise SystemExit("No speaker labels to identify. Is the transcript already labeled?")
 
@@ -209,6 +214,7 @@ def process_meeting(
     dry_run: bool,
     interactive: bool = False,
     speaker_names: list[str] | None = None,
+    use_tui: bool = True,
 ) -> Path | None:
     """Two-phase diarized meeting processing.
 
@@ -238,7 +244,7 @@ def process_meeting(
 
     if interactive:
         summary = _phase2_interactive(
-            transcript, config, prompt, meeting_context, speaker_names,
+            transcript, config, prompt, meeting_context, speaker_names, use_tui=use_tui,
         )
         return _finalize_note(summary, audio_path, reference_dir, index, vault_root, config, dry_run)
 
@@ -311,6 +317,11 @@ def main() -> None:
         default=None,
         help="Comma-separated speaker names for interactive mode (e.g. 'Peter,Eby,Grant').",
     )
+    parser.add_argument(
+        "--no-tui",
+        action="store_true",
+        help="Use sequential terminal prompts instead of the Textual TUI for speaker identification.",
+    )
 
     args = parser.parse_args()
     speaker_names = [n.strip() for n in args.speakers.split(",") if n.strip()] if args.speakers else None
@@ -319,6 +330,7 @@ def main() -> None:
         dry_run=args.no_mutate,
         interactive=args.interactive,
         speaker_names=speaker_names,
+        use_tui=not args.no_tui,
     )
     if note_path:
         print(f"\n✅ {note_path}")

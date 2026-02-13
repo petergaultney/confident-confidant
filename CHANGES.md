@@ -1,5 +1,13 @@
 # 3.0.0
 
+- Interactive speaker identification for `coco-meeting -i`: walk through diarized
+  utterances and assign speakers by name, then let the LLM fix up and summarize.
+- Textual TUI (default) with scrollable table, colored emoji per speaker, conflict
+  markers, word count, expanded text panel, directional auto-advance, and undo.
+  Old sequential terminal flow preserved via `--no-tui`.
+- `--speakers "Peter,Eby,Grant"` flag to skip the name prompt.
+- Per-utterance inline transcript annotation (`CHUNK_0_A - Peter:`) so the LLM
+  sees exactly which utterances were identified, including conflicting labels.
 - Named prompts with tag-based selection: define `## Note Prompt: meeting` (or any name)
   in config, then select it with `#meeting` on the link line in your note.
 - `coco-meeting`: two-phase vault-aware diarized meeting transcription. Phase 1 transcribes
@@ -11,6 +19,8 @@
 - Meeting notes now extract full section context from the heading above the audio link,
   giving the summarizer richer context about the meeting.
 - `#diarize` tag on link lines tells batch `coco` to skip the file.
+- Session logging to `/tmp/coco-meeting-logs/` for debugging identification decisions.
+- Default `note_model` changed to `gpt-5.2`.
 - Fix: `speakers.toml` is no longer overwritten on re-runs if it already exists.
 
 # 2.0.0

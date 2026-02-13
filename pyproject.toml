@@ -8,7 +8,7 @@ module-root = ""
 
 [project]
 name = "confident-confidant"
-version = "2.0.0"
+version = "3.0.0"
 description = "Use spooky math to transform audio notes into transcripts and summaries"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -16,13 +16,14 @@ dependencies = [
   "hjson",
   "litellm",
   "openai>=2.0.0",
+  "textual",
   "thds-core",
   "thds-humenc",
   "thds-mops",
 ]
 
 [dependency-groups]
-dev = ["ruff", "mypy", "mypy-extensions", "pytest"]
+dev = ["ruff", "mypy", "mypy-extensions", "pytest", "pytest-asyncio"]
 
 [tool.ruff]
 line-length = 105
