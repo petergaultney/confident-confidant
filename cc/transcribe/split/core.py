@@ -219,6 +219,11 @@ def split_audio_on_silences(
         ]
 
     log_file = _detect_silence(audio_file)
-    cuts = choose_cuts(silence_log_path=log_file, every=every, window=window)
+    cuts = choose_cuts(
+        silence_log_path=log_file,
+        every=every,
+        duration=audio_duration,
+        window=window,
+    )
     chunks = _split_on_silence(audio_file, cuts)
     return chunks

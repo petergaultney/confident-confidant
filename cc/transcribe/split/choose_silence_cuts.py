@@ -67,49 +67,42 @@ def _choose_cuts(
 ) -> list[Cut]:
     """
     Returns list of Cut(target, chosen, delta) where delta = chosen - target.
+
+    Chosen values are strictly increasing so the result can be passed directly
+    to ffmpeg's `-segment_times`, which requires ascending order.
     """
     if not mids:
         return []
 
     mids_sorted = sorted(mids)
-    used = set()
 
-    # If duration is not provided, infer something reasonable from the last midpoint.
     inferred_duration = mids_sorted[-1] + every
     dur = duration if duration is not None else inferred_duration
-
-    # Targets: start_at + k*every, but don't schedule a cut too close to end
     last_target = dur - stop_before_end
-    t = start_at
 
     results: list[Cut] = []
+    t = start_at
+    last_chosen = float("-inf")
+
     while t <= last_target:
-        # candidate mids
-        if window is None:
-            candidates = [(abs(m - t), m) for m in mids_sorted]
-        else:
-            candidates = [(abs(m - t), m) for m in mids_sorted if abs(m - t) <= window]
-
-        candidates.sort(key=lambda x: x[0])
-
-        chosen: float | None = None
-        for _, m in candidates:
-            if m not in used:
-                chosen = m
-                break
-
-        if chosen is None:
-            # No unused candidate within the window. If window was set, fall back to global nearest unused.
-            if window is not None:
-                candidates2 = [(abs(m - t), m) for m in mids_sorted if m not in used]
-                candidates2.sort(key=lambda x: x[0])
-                if candidates2:
-                    chosen = candidates2[0][1]
-
-        if chosen is None:
+        # Only consider silences after the previous cut so chosen times stay
+        # monotonically increasing — otherwise the fallback below could pick
+        # an earlier silence than one already used.
+        eligible = [m for m in mids_sorted if m > last_chosen]
+        if not eligible:
             break
 
-        used.add(chosen)
+        if window is None:
+            chosen = min(eligible, key=lambda m: abs(m - t))
+        else:
+            in_window = [m for m in eligible if abs(m - t) <= window]
+            chosen = (
+                min(in_window, key=lambda m: abs(m - t))
+                if in_window
+                else min(eligible, key=lambda m: abs(m - t))
+            )
+
+        last_chosen = chosen
         results.append(Cut(target=t, chosen=chosen, delta=chosen - t))
         t += every
 

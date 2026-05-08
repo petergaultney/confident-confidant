@@ -227,3 +227,21 @@ class TestChooseCuts:
         # last_target = 2400 - 30 = 2370
         # Only target at 1200 fits
         assert len(result) == 1
+
+    def test_chosen_times_are_monotonic_when_fallback_would_go_backward(self):
+        # Regression: with sparse silences and no actual duration provided,
+        # the inferred duration generates a target past the end of useful
+        # silences. The fallback must not pick a silence earlier than one
+        # already chosen — ffmpeg's -segment_times requires ascending order.
+        mids = [18.926125, 1863.2255]
+        result = _choose_cuts(
+            mids=mids,
+            every=1200,
+            duration=None,
+            window=90,
+            start_at=1200,
+            stop_before_end=30,
+        )
+        chosen_times = [c.chosen for c in result]
+        assert chosen_times == sorted(chosen_times)
+        assert 18.926125 not in chosen_times or chosen_times.index(18.926125) == 0
