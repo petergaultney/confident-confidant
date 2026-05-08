@@ -23,6 +23,7 @@ def cli() -> None:
         transcription_context=config.transcription_context,
         reformat_model=config.reformat_model,
         split_audio_approx_every_s=config.split_audio_approx_every_s,
+        silence_threshold_db=config.silence_threshold_db,
     )
 
     if args.out:

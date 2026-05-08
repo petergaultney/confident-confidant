@@ -24,6 +24,7 @@ def transcribe_audio_diarized(
     *,
     diarization_model: str = DEFAULT_CONFIG.diarization_model,
     split_audio_approx_every_s: float = DEFAULT_CONFIG.split_audio_approx_every_s,
+    silence_threshold_db: float = DEFAULT_CONFIG.silence_threshold_db,
 ) -> Output:
     if not input_file.exists():
         raise FileNotFoundError(f"Input file not found: {input_file}")
@@ -32,7 +33,11 @@ def transcribe_audio_diarized(
     workdir().mkdir(parents=True, exist_ok=True)
 
     logger.info("Splitting audio on silences...")
-    chunks = split_audio_on_silences(source.from_file(input_file), every=split_audio_approx_every_s)
+    chunks = split_audio_on_silences(
+        source.from_file(input_file),
+        every=split_audio_approx_every_s,
+        silence_threshold_db=silence_threshold_db,
+    )
     logger.info(f"Split into {len(chunks)} chunks")
 
     logger.info("Transcribing with diarization...")

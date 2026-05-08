@@ -24,6 +24,7 @@ def cli() -> None:
         input_file=args.input,
         diarization_model=config.diarization_model,
         split_audio_approx_every_s=config.split_audio_approx_every_s,
+        silence_threshold_db=config.silence_threshold_db,
     )
 
     dest: Path | None = args.out

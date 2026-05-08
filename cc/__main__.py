@@ -132,6 +132,7 @@ def process_audio_file(
         transcription_context=tconfig.transcription_context,
         reformat_model=tconfig.reformat_model,
         split_audio_approx_every_s=tconfig.split_audio_approx_every_s,
+        silence_threshold_db=tconfig.silence_threshold_db,
     )
     title, note = llm.summarize.summarize_transcript(
         tconfig.note_model,
