@@ -48,7 +48,7 @@ def extract_audio(input_file: Source) -> Source:
     return Source.from_file(output_audio_file)
 
 
-def _detect_silence(audio_file: Source) -> Source:
+def _detect_silence(audio_file: Source, threshold_db: float) -> Source:
     """Run ffmpeg silencedetect and write log file."""
     which_ffmpeg_or_raise()
 
@@ -60,7 +60,10 @@ def _detect_silence(audio_file: Source) -> Source:
         [
             *"ffmpeg -hide_banner -i".split(),
             str(audio_file.path()),  # paths can have spaces in them
-            *"-vn -af silencedetect=noise=-35dB:d=0.4 -f null -".split(),
+            "-vn",
+            "-af",
+            f"silencedetect=noise={threshold_db}dB:d=0.4",
+            *"-f null -".split(),
         ],
         capture_output=True,
         text=True,
@@ -195,7 +198,10 @@ def _is_audio_file_chunk_sized(
 
 @pure.magic()
 def split_audio_on_silences(
-    input_file: Source, every: float = 1200.0, window: float = 90.0
+    input_file: Source,
+    every: float = 1200.0,
+    window: float = 90.0,
+    silence_threshold_db: float = _DEFAULT_SILENCE_THRESHOLD,
 ) -> list[Chunk]:
     """Run the full split pipeline: extract audio, detect silence, choose cuts, split."""
     audio_file = extract_audio(input_file)
@@ -218,7 +224,7 @@ def split_audio_on_silences(
             )
         ]
 
-    log_file = _detect_silence(audio_file)
+    log_file = _detect_silence(audio_file, threshold_db=silence_threshold_db)
     cuts = choose_cuts(
         silence_log_path=log_file,
         every=every,

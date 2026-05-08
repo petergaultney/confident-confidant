@@ -56,6 +56,9 @@ class ConfidentConfidantConfig:
     reformat_model: str = "gpt-4o"
     # ^ for stitching together chunk-transcripts if the audio file is long
     split_audio_approx_every_s: int = 20 * 60  # 20 minutes
+    silence_threshold_db: float = -35.0  # dB
+    # higher (less negative) thresholds count quieter sound as "silence" — raise this when
+    # constant background noise (fans, dehumidifiers) is keeping speech-pause sections above -35dB
     diarization_model: str = "gpt-4o-transcribe-diarize"
 
     # for summarizing:

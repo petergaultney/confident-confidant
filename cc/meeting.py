@@ -74,6 +74,7 @@ def _phase1_transcribe(
         audio_path,
         diarization_model=config.diarization_model,
         split_audio_approx_every_s=config.split_audio_approx_every_s,
+        silence_threshold_db=config.silence_threshold_db,
     )
     return output.transcript, output.speakers_toml
 
