@@ -168,3 +168,9 @@ hint) and to the summarizer (as background context).
       cleverness to respect headings.
 - [x] Support audio recordings larger than 25 MB. This is a low priority feature for me
       and would likely require taking on new dependencies.
+- [ ] Multi-stream recordings: when the input already has one audio stream per speaker
+      (e.g. a recording app that captures each participant separately), skip diarization
+      entirely. Transcribe each stream independently with the cheaper non-diarize model,
+      tag every segment with that stream's known speaker, and stitch the streams back
+      together by timestamp. This is more accurate than model diarization (speaker labels
+      come from the channel, not a guess) and avoids the diarize model's constraints.

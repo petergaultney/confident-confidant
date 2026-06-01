@@ -7,7 +7,6 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from openai import OpenAI
-from thds.core.source import Source
 from thds.mops import pure
 
 from cc.env import activate_api_keys
@@ -32,7 +31,6 @@ class DiarizedChunkTranscript:
     """Transcription result for a single chunk with diarization."""
 
     index: int
-    audio_src: Source  # Use Source instead of Path/str for memoization
     segments: list[DiarizedSegment]
 
 
@@ -48,13 +46,18 @@ def _transcribe_chunk_diarized(chunk: Chunk, model: str, out_dir: Path) -> Diari
 
     client = OpenAI()
 
-    with open(chunk.audio_src.path(), "rb") as f:
+    chunk_path = chunk.audio_src.path()
+    with open(chunk_path, "rb") as f:
         # Using OpenAI client directly instead of litellm because of
         # https://github.com/BerriAI/litellm/issues/18125
         # litellm doesn't properly pass chunking_strategy which is required for diarization
         response = client.audio.transcriptions.create(
             model=model,
-            file=f,
+            # pass an explicit filename: a Source resolved through mops yields an
+            # extensionless temp path (e.g. '_bytes'), and the API infers the audio
+            # format from the filename - without a real extension it 400s with
+            # 'Unsupported file format'. chunk.index keeps the names distinct.
+            file=(f"chunk_{chunk.index:03d}.m4a", f),
             response_format="diarized_json",
             chunking_strategy="auto",  # Required for audio > 30s
         )
@@ -77,12 +80,11 @@ def _transcribe_chunk_diarized(chunk: Chunk, model: str, out_dir: Path) -> Diari
 
     transcript = DiarizedChunkTranscript(
         index=chunk.index,
-        audio_src=chunk.audio_src,
         segments=segments,
     )
 
     # for troubleshooting
-    out_json = out_dir / f"{chunk.audio_src.path().stem}.diarized.json"
+    out_json = out_dir / f"chunk_{chunk.index:03d}.diarized.json"
     out_json.write_text(
         json.dumps(asdict(transcript), ensure_ascii=False, indent=2, default=str),
         encoding="utf-8",
@@ -115,7 +117,7 @@ def transcribe_chunks_diarized(chunks: list[Chunk], model: str) -> list[Diarized
         }
         for future in as_completed(futures):
             chunk = futures[future]
-            chunk_name = chunk.audio_src.path().name
+            chunk_name = f"chunk_{chunk.index:03d}"
             try:
                 successes.append(future.result())
                 logger.info(f"ok  {chunk_name}")
