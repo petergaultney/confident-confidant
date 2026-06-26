@@ -29,20 +29,63 @@ class Chunk:
     end_time: float | None = None
 
 
+def _count_audio_streams(audio_file: Source) -> int:
+    """Number of audio streams in the file (iOS call recordings carry one per speaker)."""
+    which_ffmpeg_or_raise()
+
+    result = subprocess.run(
+        [
+            *"ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0".split(),
+            str(audio_file.path()),  # paths can have spaces in them
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return len([line for line in result.stdout.splitlines() if line.strip()])
+
+
+def _build_extract_audio_cmd(input_path: Path, output_path: Path, n_audio_streams: int) -> list[str]:
+    """ffmpeg invocation to render the input down to a single audio track.
+
+    A multi-track input (e.g. an iOS call recording with one stream per speaker) is mixed
+    down to one mono track via `amix` — OpenAI's transcribe-diarize model rejects files with
+    more than one audio stream, and keeping only the first stream would drop a whole speaker.
+    """
+    stream_args = (
+        [
+            "-filter_complex",
+            "".join(f"[0:a:{i}]" for i in range(n_audio_streams))
+            + f"amix=inputs={n_audio_streams}:duration=longest",
+            "-ac",
+            "1",
+        ]
+        if n_audio_streams > 1
+        else ["-map", "0:a:0"]
+    )
+    return [
+        *"ffmpeg -hide_banner -loglevel error -i".split(),
+        str(input_path),  # paths can have spaces in them
+        "-vn",
+        *stream_args,
+        *"-c:a aac".split(),
+        str(output_path),
+    ]
+
+
 def extract_audio(input_file: Source) -> Source:
-    """Extract audio track from input file to m4a format."""
+    """Extract audio track from input file to m4a format, mixing multi-track inputs to mono."""
     which_ffmpeg_or_raise()
 
     output_audio_file = workdir() / "audio.m4a"
     workdir().mkdir(parents=True, exist_ok=True)
 
+    n_audio_streams = _count_audio_streams(input_file)
+    if n_audio_streams > 1:
+        logger.info(f"Input has {n_audio_streams} audio streams; mixing down to a single mono track")
+
     subprocess.run(
-        [
-            *"ffmpeg -hide_banner -loglevel error -i".split(),
-            str(input_file.path()),  # paths can have spaces in them
-            *"-vn -map 0:a:0 -c:a aac".split(),
-            str(output_audio_file),
-        ],
+        _build_extract_audio_cmd(input_file.path(), output_audio_file, n_audio_streams),
         check=True,
     )
     return Source.from_file(output_audio_file)
