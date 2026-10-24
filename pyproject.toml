@@ -8,7 +8,7 @@ module-root = ""
 
 [project]
 name = "confident-confidant"
-version = "2.0.0"
+version = "4.0.0"
 description = "Use spooky math to transform audio notes into transcripts and summaries"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -20,6 +20,10 @@ dependencies = [
   "thds-humenc",
   "thds-mops",
 ]
+
+[project.optional-dependencies]
+# on-device transcription; MLX runs only on Apple Silicon
+parakeet = ["parakeet-mlx>=0.5.3; sys_platform == 'darwin' and platform_machine == 'arm64'"]
 
 [dependency-groups]
 dev = ["ruff", "mypy", "mypy-extensions", "pytest"]
@@ -50,7 +54,7 @@ disallow_untyped_calls = true
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["hjson"]
+module = ["hjson", "parakeet_mlx"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

@@ -3,9 +3,9 @@ import logging
 from thds.core.source import Source
 from thds.mops import pure
 
-from cc.transcribe.llm.transcribe_chunks import ChunkTranscript
+from cc.transcribe import models
+from cc.transcribe.models import ChunkTranscript
 from cc.transcribe.workdir import workdir
-from cc.transcribe import llm
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ def stitch_transcripts(chunk_transcripts: list[ChunkTranscript], model: str) -> 
     logger.info(f"Wrote raw joined-transcript: {out_raw}")
 
     logger.info(f"Reformatting with {model}...")
-    reformatted = llm.reformat_stitched_transcript(raw_text, model)
+    reformatted = models.reformat_stitched_transcript(raw_text, model)
     out_txt.write_text(reformatted + "\n", encoding="utf-8")
     logger.info(f"Wrote reformatted transcript: {out_txt}")
 

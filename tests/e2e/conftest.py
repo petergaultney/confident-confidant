@@ -36,6 +36,7 @@ def _generate_or_get_cached_file(
     audio_file = _E2E_DIR / f"fixtures/generated/{source_text.stem}.{wordybin}.m4a"
     if audio_file.exists():
         return audio_file
+    audio_file.parent.mkdir(parents=True, exist_ok=True)
     return generate_audio_file(source_text, audio_file)
 
 

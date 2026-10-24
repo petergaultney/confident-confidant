@@ -4,9 +4,9 @@
 
 ```hjson
 transcription_model: gpt-4o-transcribe
-reformat_model: gpt-4o
+reformat_model: anthropic/claude-haiku-5-5
 split_audio_approx_every_s: 1200
-note_model: anthropic/claude-sonnet-4-20250514
+note_model: anthropic/claude-sonnet-5-5
 audio_dir: ./cc/audio
 notes_dir: ./cc/notes
 datetime_fmt: %y-%m-%d_%H%M
