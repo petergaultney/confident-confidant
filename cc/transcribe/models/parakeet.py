@@ -88,9 +88,9 @@ def transcribe_chunks(chunks: ty.Sequence[Chunk], hf_repo: str) -> list[ChunkTra
     transcripts: list[ChunkTranscript] = []
     for chunk in chunks:
         result = model.transcribe(chunk.audio_src.path(), decoding_config=decoding_config)
-        transcript = ChunkTranscript(index=chunk.index, text=result.text, audio_src=chunk.audio_src)
+        transcript = ChunkTranscript(index=chunk.index, text=result.text)
         debug.write_chunk_transcript(out_dir, transcript)
-        logger.info(f"ok  {chunk.audio_src.path().name}")
+        logger.info(f"ok  {debug.chunk_name(chunk.index)}")
         transcripts.append(transcript)
 
     return transcripts
