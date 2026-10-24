@@ -35,12 +35,15 @@ Install `coco` as an editable tool:
 uv tool install -e .
 ```
 
+To transcribe on-device instead of with OpenAI (Apple Silicon only), install the
+`parakeet` extra with `uv tool install -e '.[parakeet]'`; see [cc/transcribe](cc/transcribe/README.md#on-device-transcription).
+
 You'll need an OpenAI API key and an Anthropic API key. Place them in `~/.keys/openai-api`
 and `~/.keys/anthropic-api`, or set `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` environment variables.
 
 If you wish to use only OpenAI, you can skip the Anthropic key, but you'll need to
-configure one of OpenAI's LLMs as the `note_model`, using the config format shown
-below. As of this writing, I'm not aware of an Anthropic transcription model that we could
+configure one of OpenAI's LLMs as the `note_model` and the `reformat_model`, using the
+config format shown below. As of this writing, I'm not aware of an Anthropic transcription model that we could
 be supporting.
 
 ## Usage

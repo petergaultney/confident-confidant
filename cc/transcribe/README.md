@@ -1,12 +1,34 @@
 # cc.transcribe
 
-Transcribe audio files using OpenAI's transcription API. Long files are split on
-silence boundaries, transcribed in parallel, and stitched back together.
+Transcribe audio files using OpenAI's transcription API, or on-device with NVIDIA
+Parakeet. Long files are split on silence boundaries, transcribed chunk by chunk,
+and stitched back together.
 
 ## Requirements
 
 - `ffmpeg` (`brew install ffmpeg`)
-- OpenAI API key (set `OPENAI_API_KEY` or place in `~/.keys/openai-api`)
+- OpenAI API key (set `OPENAI_API_KEY` or place in `~/.keys/openai-api`), unless
+  you transcribe on-device
+
+## On-device transcription
+
+Set `transcription_model` to `parakeet-mlx/` followed by a Hugging Face repo, e.g.
+`parakeet-mlx/mlx-community/parakeet-tdt-0.6b-v3`. We then transcribe with
+[parakeet-mlx](https://github.com/senstella/parakeet-mlx) instead of calling OpenAI.
+v3 covers English and 24 other European languages, and it runs only on Apple
+Silicon.
+
+This needs the `parakeet` extra:
+
+```bash
+uv tool install -e '.[parakeet]'
+```
+
+The first run downloads the model weights (~1.2 GB) into the Hugging Face cache.
+
+Parakeet takes no prompt, so we do not use `transcription_context` when
+transcribing on-device. Long files still go through the `reformat_model` stitch
+step below.
 
 ## Usage
 
@@ -37,11 +59,11 @@ library, parameters are passed directly.
    within a 90-second window. The file is then segmented at those points. Silent
    chunks are discarded. Short files skip this step entirely.
 3. **Transcribe** — Each chunk is sent to the OpenAI transcription API in
-   parallel (2 workers). Individual results are saved as JSON for
-   troubleshooting.
+   parallel (2 workers), or transcribed on-device one at a time with Parakeet.
+   Individual results are saved as JSON for troubleshooting.
 4. **Stitch** — Chunk transcripts are concatenated in order. If there was only
    one chunk, the text is used as-is. Otherwise, an LLM (`reformat_model`,
-   default `gpt-4o`) cleans up capitalization and punctuation at fragment
+   default `anthropic/claude-haiku-5-5`) cleans up capitalization and punctuation at fragment
    boundaries and inserts paragraph breaks.
 
 All pipeline steps are memoized (`thds.mops.pure.magic`), so re-running the
@@ -64,9 +86,9 @@ These fields from the `coco` config are used by the transcribe pipeline:
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `transcription_model` | `gpt-4o-transcribe` | OpenAI transcription model |
+| `transcription_model` | `gpt-4o-transcribe` | OpenAI transcription model, or `parakeet-mlx/<hf-repo>` for [on-device](#on-device-transcription) |
 | `transcription_prompt` | `""` | Optional prompt to guide transcription |
-| `reformat_model` | `gpt-4o` | LLM used to clean up stitched transcripts |
+| `reformat_model` | `anthropic/claude-haiku-5-5` | LLM used to clean up stitched transcripts |
 | `split_audio_approx_every_s` | `1200` (20 min) | Target chunk duration in seconds |
 
 ## Speaker Diarization

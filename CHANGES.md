@@ -1,3 +1,13 @@
+# 4.0.0
+
+- Breaking: default `reformat_model` is now `anthropic/claude-haiku-5-5` (was `gpt-4o`), so
+  transcribing a file long enough to be split needs an Anthropic key unless you set
+  `reformat_model` to an OpenAI model. Default `note_model` is now `anthropic/claude-sonnet-5-5`
+  (was `anthropic/claude-sonnet-4-20250514`).
+- On-device transcription with NVIDIA Parakeet: set `transcription_model` to
+  `parakeet-mlx/mlx-community/parakeet-tdt-0.6b-v3`. Needs the new `parakeet` extra
+  (Apple Silicon only); no OpenAI key needed to transcribe.
+
 # 3.0.0
 
 - Named prompts with tag-based selection: define `## Note Prompt: meeting` (or any name)

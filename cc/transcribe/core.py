@@ -4,7 +4,7 @@ from pathlib import Path
 from thds.core import source
 
 from cc.config import DEFAULT_CONFIG
-from cc.transcribe import llm
+from cc.transcribe import models
 from cc.transcribe.split import split_audio_on_silences
 from cc.transcribe.stitch import stitch_transcripts
 from cc.transcribe.workdir import derive_workdir, workdir
@@ -41,7 +41,7 @@ def transcribe_audio_file(
         every=split_audio_approx_every_s,
         silence_threshold_db=silence_threshold_db,
     )
-    chunk_transcripts = llm.transcribe_chunks(
+    chunk_transcripts = models.transcribe_chunks(
         chunks, model=transcription_model, prompt=transcription_context
     )
     final = stitch_transcripts(chunk_transcripts, model=reformat_model)

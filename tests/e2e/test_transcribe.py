@@ -40,3 +40,16 @@ def test_transcribe_short_audio(short_audio: Path):
     assert transcript_path.exists()
     text = transcript_path.read_text(encoding="utf-8")
     assert len(text.strip()) > 20, "Transcript suspiciously short"
+
+
+def test_transcribe_short_audio_on_device(short_audio: Path):
+    """Transcribe a short clip with Parakeet — needs the `parakeet` extra, and no API keys."""
+    pytest.importorskip("parakeet_mlx")
+
+    transcript_path = transcribe_audio_file(
+        short_audio, transcription_model="parakeet-mlx/mlx-community/parakeet-tdt-0.6b-v3"
+    )
+
+    assert transcript_path.exists()
+    text = transcript_path.read_text(encoding="utf-8")
+    assert len(text.strip()) > 20, "Transcript suspiciously short"

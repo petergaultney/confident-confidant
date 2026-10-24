@@ -51,9 +51,10 @@ DEFAULT_NOTE_PROMPT = textwrap.dedent(
 class ConfidentConfidantConfig:
     # for transcribing:
     transcription_model: str = "gpt-4o-transcribe"  # or "whisper-1", or "gpt-4o-mini-transcribe"
+    # or "parakeet-mlx/mlx-community/parakeet-tdt-0.6b-v3" for on-device (needs the `parakeet` extra)
     transcription_context: str = ""
     # names, terms, pronunciations — passed to both transcription API and summarizer
-    reformat_model: str = "gpt-4o"
+    reformat_model: str = "anthropic/claude-haiku-5-5"
     # ^ for stitching together chunk-transcripts if the audio file is long
     split_audio_approx_every_s: int = 20 * 60  # 20 minutes
     silence_threshold_db: float = -35.0  # dB
@@ -62,7 +63,7 @@ class ConfidentConfidantConfig:
     diarization_model: str = "gpt-4o-transcribe-diarize"
 
     # for summarizing:
-    note_model: str = "anthropic/claude-sonnet-4-20250514"
+    note_model: str = "anthropic/claude-sonnet-5-5"
     note_prompts: dict[str, str] = field(default_factory=dict)
     # keyed by prompt name ("default", "meeting", etc.)
 

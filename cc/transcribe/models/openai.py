@@ -1,26 +1,19 @@
-import json
 import logging
 import typing as ty
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from openai import OpenAI, omit
-from thds.core.source import Source
 from thds.mops import pure
 
 from cc.env import activate_api_keys
 from cc.transcribe.split import Chunk
 from cc.transcribe.workdir import workdir
 
+from . import debug
+from .types import ChunkTranscript
+
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class ChunkTranscript:
-    index: int
-    text: str
-    audio_src: Source
 
 
 class _TranscriptionError(Exception):
@@ -38,13 +31,7 @@ def _transcribe_one(chunk: Chunk, model: str, prompt: str, out_dir: Path) -> Chu
         resp = client.audio.transcriptions.create(model=model, prompt=prompt.strip() or omit, file=f)
 
     transcript = ChunkTranscript(index=chunk.index, text=resp.text, audio_src=chunk.audio_src)
-
-    # for troubleshooting
-    out_json = out_dir / f"{chunk.audio_src.path().stem}.json"
-    out_json.write_text(
-        json.dumps(asdict(transcript), ensure_ascii=False, indent=2, default=str), encoding="utf-8"
-    )
-
+    debug.write_chunk_transcript(out_dir, transcript)
     return transcript
 
 
