@@ -28,9 +28,14 @@ def _transcribe_one(chunk: Chunk, model: str, prompt: str, out_dir: Path) -> Chu
 
     client = OpenAI()
     with chunk.audio_src.path().open("rb") as f:
-        resp = client.audio.transcriptions.create(model=model, prompt=prompt.strip() or omit, file=f)
+        # The SDK infers the audio format from the filename, and under mops the path is just '_bytes'.
+        resp = client.audio.transcriptions.create(
+            model=model,
+            prompt=prompt.strip() or omit,
+            file=(f"{debug.chunk_name(chunk.index)}.m4a", f),
+        )
 
-    transcript = ChunkTranscript(index=chunk.index, text=resp.text, audio_src=chunk.audio_src)
+    transcript = ChunkTranscript(index=chunk.index, text=resp.text)
     debug.write_chunk_transcript(out_dir, transcript)
     return transcript
 
@@ -49,7 +54,7 @@ def transcribe_chunks(chunks: ty.Sequence[Chunk], model: str, prompt: str) -> li
             chunk = futures[future]
             try:
                 successes.append(future.result())
-                logger.info(f"ok  {chunk.audio_src.path().name}")
+                logger.info(f"ok  {debug.chunk_name(chunk.index)}")
             except Exception as exc:
                 logger.error(f"Error raised for job {chunk.index}", exc_info=exc)
                 failures.append(_TranscriptionError(chunk.audio_src.path(), exc))
