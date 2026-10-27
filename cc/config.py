@@ -141,11 +141,18 @@ def _find_config_in_dir(current_dir: Path) -> ConfidentConfidantConfig | None:
     return None
 
 
-@lru_cache
 def collect_configs_root_to_file(any_path: Path) -> tuple[ConfidentConfidantConfig, ...]:
     """Collect all non-empty configs from filesystem root down to any_path's directory."""
+    # A relative path's walk would stop at Path("."), whose parent is itself.
+    return _collect_configs_root_to_absolute_path(any_path.resolve())
+
+
+@lru_cache
+def _collect_configs_root_to_absolute_path(
+    absolute_path: Path,
+) -> tuple[ConfidentConfidantConfig, ...]:
     configs: list[ConfidentConfidantConfig] = []
-    current = any_path if any_path.is_dir() else any_path.parent
+    current = absolute_path if absolute_path.is_dir() else absolute_path.parent
     while current != current.parent:
         config = _find_config_in_dir(current)
         if config is not None:

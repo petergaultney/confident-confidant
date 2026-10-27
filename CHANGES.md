@@ -1,3 +1,9 @@
+# 4.0.1
+
+- Fix: config lookup now walks up from a relative path. Before, `transcribe todo/memo.m4a`
+  stopped at the current directory, ignored any `cc-config.md` above it, and fell back to the
+  default `transcription_model` (`gpt-4o-transcribe`).
+
 # 4.0.0
 
 - Breaking: default `reformat_model` is now `anthropic/claude-haiku-5-5` (was `gpt-4o`), so
