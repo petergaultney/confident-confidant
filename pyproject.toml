@@ -8,7 +8,7 @@ module-root = ""
 
 [project]
 name = "confident-confidant"
-version = "4.0.0"
+version = "4.0.1"
 description = "Use spooky math to transform audio notes into transcripts and summaries"
 readme = "README.md"
 requires-python = ">=3.13"

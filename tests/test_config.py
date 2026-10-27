@@ -1,7 +1,12 @@
+from pathlib import Path
+
+import pytest
+
 from cc.config import (
     ConfidentConfidantConfig,
     DEFAULT_NOTE_PROMPT,
     _parse_config_md,
+    read_config_from_directory_hierarchy,
     resolve_prompt,
 )
 
@@ -127,3 +132,19 @@ def test_resolve_tag_not_found_anywhere():
     """Tag requested but no config defines it → fall back to builtin."""
     configs = (ConfidentConfidantConfig(note_prompts={"default": "exists"}),)
     assert resolve_prompt(configs, ["nonexistent"]) == DEFAULT_NOTE_PROMPT
+
+
+def test_read_config_walks_up_from_relative_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "cc-config.md").write_text("""\
+# Confident Confidant Config
+
+## Base Config
+```hjson
+transcription_model: parakeet-mlx/mlx-community/parakeet-tdt-0.6b-v3
+```""")
+    (tmp_path / "todo").mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    config = read_config_from_directory_hierarchy(Path("todo/memo.m4a"))
+
+    assert config.transcription_model == "parakeet-mlx/mlx-community/parakeet-tdt-0.6b-v3"
